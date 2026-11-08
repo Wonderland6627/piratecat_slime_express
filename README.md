@@ -1,192 +1,62 @@
-# CloudRun Express 小游戏后端服务
+# Slime Express
 
-基于 Express 和 CloudBase 的小游戏后端服务，采用标准分层架构设计。
+小游戏后端，Express 进程，业务数据在腾讯云开发（CloudBase）文档数据库。
 
-## 📁 项目架构
+线上环境、机器规格、域名、部署目录和对象存储写在 `docs/ops.local.md`。该文件不入库。分析部署、容量或资源放在哪里时，先读这个文件。
 
-本项目采用标准的分层架构：
+域名、CDN、服务器、部署目录或发布方式发生变化时，同一次改动里更新两处：
 
-```
-routes/          # 路由层 - 路由定义和中间件绑定
-controllers/      # 控制器层 - 处理HTTP请求/响应
-services/         # 服务层 - 业务逻辑处理
-middlewares/      # 中间件层 - 认证、验证、错误处理
-utils/            # 工具层 - 数据库操作、第三方API
-config/           # 配置层 - 统一配置管理
-```
+- `docs/ops.local.md`：写下新的地址、规格、目录、存储桶和域名对应关系。
+- 本 `README.md`：开发时要知道的入口如果变了，改掉对应说明，包括该读哪份备忘、本地怎么启动、现行发布方式是什么。
 
-详细文档索引请查看：[文档索引](./docs/文档索引-服务端.md)
+具体地址和机器规格留在 `docs/ops.local.md`。README 保持指向正确，后续开发按这两份文件的当前内容判断服务器情况。
 
-## 🚀 快速开始
+## 本地启动
 
-### 本地开发
+需要 Node.js 20。在 `piratecat_slime_express` 目录：
 
 ```bash
 npm install
 npm start
 ```
 
-服务将在 `http://localhost:3000` 启动
-
-### 环境变量配置
-
-创建 `.env` 文件：
+启动前准备 `.env`。该文件已在 `.gitignore` 中，变量说明见 [环境配置](./docs/环境配置-ENV_SETUP.md)。本地联调 Editor 登录时至少包括：
 
 ```env
-TCB_ENV=your-env-id
-TCB_SECRET_ID=your-secret-id
-TCB_SECRET_KEY=your-secret-key
-WX_APPID=your-wechat-appid
-WX_SECRET=your-wechat-secret
+NODE_ENV=development
+ENABLE_TEST_MODE=true
+TCB_ENV=云开发环境ID
+TOKEN_SECRET=本地随机串
+TCB_SECRET_ID=
+TCB_SECRET_KEY=
+WX_APPID=
+WX_SECRET=
 ```
 
-## 📚 文档
+服务默认监听 `http://localhost:3000`，可用环境变量 `PORT` 覆盖。启动后访问 `GET /health` 确认进程起来了。
 
-### 核心文档
-- [文档索引](./docs/文档索引-服务端.md) - 服务端文档导航
-- [快速开始](./docs/快速开始-QUICK_START.md) - 项目快速开始
-- [API测试文档](./docs/接口测试-TEST_API.md) - API接口测试指南
-- [部署指南](./docs/部署指南-DEPLOYMENT_GUIDE.md) - 部署到腾讯云托管
+密钥只放 `.env` 和服务器上的环境变量，不要写进文档。
 
-### 配置文档
-- [环境配置](./docs/环境配置-ENV_SETUP.md) - 环境变量配置说明
-- [CloudBase配置](./docs/CloudBase配置-CLOUDBASE_CONFIG.md) - CloudBase数据库配置
-- [数据库连接说明](./docs/数据库连接说明-DATABASE_CONNECTION.md) - 数据库连接详解
-
-### 其他文档
-- [版本验证](./docs/版本验证-VERSION_VERIFICATION.md) - 版本验证方法
-
-## 📋 API接口
-
-所有接口统一使用以下响应格式：
-
-**成功响应**：
-```json
-{
-  "code": 0,
-  "data": {},
-  "msg": "success"
-}
-```
-
-**错误响应**：
-```json
-{
-  "code": -1,
-  "msg": "error message"
-}
-```
-
-### 接口列表
-
-- `POST /api/minigame/getCode2Session` - 获取微信用户信息
-- `POST /api/minigame/getUserWXContext` - 获取微信上下文
-- `POST /api/minigame/getUserGameInfoV2` - 获取用户游戏信息
-- `POST /api/minigame/setUserGameInfoV2` - 设置用户游戏信息
-- `POST /api/minigame/getUserRankListV2` - 获取排行榜
-- `POST /api/minigame/getLevelsConfigV2` - 获取关卡配置
-
----
-
-# 快速部署 Express 应用
-
-本篇文章为您介绍应用控制台的部署方案, 您可以通过以下操作完成部署。
-
-## 模版部署 Express 应用
-
-1、登录 [腾讯云托管控制台](https://tcb.cloud.tencent.com/dev#/platform-run/service/create?type=image)
-
-2、点击通过模版部署，选择 ```Express 模版```
-
-3、输入自定义服务名称，点击部署
-
-4、等待部署完成之后，点击左上角箭头，返回到服务详情页
-
-5、点击概述，获取默认域名并访问，会显示云托管默认首页
-
-## 自定义部署 Express 应用
-
-### 创建一个 Express 应用
-
-创建一个新的 Express 应用，首先需要保证在你记得机器上安装 Node.js 8.2.0 及以上版本。
-
-创建一个目录 ```cloudrun-express```, 然后 ```cd``` 进入该目录。
-
-执行如下命令在 ```cloudrun-express``` 目录:
+## 代码结构
 
 ```
-npx express-generator --view=pug
+routes/        路由
+controllers/   请求与响应
+services/      业务逻辑
+middlewares/   认证、校验、错误处理
+utils/         数据库、日志、第三方调用
+config/        配置
 ```
 
-```cloudrun-express``` 将在目录中使用 pug 作为视图引擎创建一个新的 Express 应用程序。
+接口字段和联调步骤看 [快速开始](./docs/快速开始-QUICK_START.md) 和 [接口参考](./docs/接口参考-API_REFERENCE.md)。成功响应是 `{ "code": 0, "data": {}, "msg": "success" }`。
 
-### 在本地运行 Express 应用
+## 文档
 
-运行 ```npm install``` 安装所有依赖项。
+- [文档索引](./docs/文档索引-服务端.md)
+- [快速开始](./docs/快速开始-QUICK_START.md)
+- [环境配置](./docs/环境配置-ENV_SETUP.md)
+- [认证指南](./docs/认证指南-AUTH_GUIDE.md)
+- [接口参考](./docs/接口参考-API_REFERENCE.md)
+- [日志使用指南](./docs/日志使用指南-LOGGER_USAGE.md)
 
-接下来，通过运行以下命令启动应用程序:
-
-```
-npm start
-```
-
-启动浏览器并导航至 http://localhost:3000 以查看该应用程序。
-
-### 部署到云托管
-
-1、在cloudrun-express目录下创建一个名称为Dockerfile的新文件,内容如下:
-
-```
-FROM alpine:3.13
-
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories \
-&& apk add --update --no-cache nodejs npm
-
-# 容器默认时区为UTC，如需使用上海时间请启用以下时区设置命令
-RUN apk add tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo Asia/Shanghai > /etc/timezone
-
-# 使用 HTTPS 协议访问容器云调用证书安装
-RUN apk add ca-certificates
-
-# # 指定工作目录
-WORKDIR /app
-
-# 拷贝包管理文件
-COPY package*.json /app/
-
-# npm 源，选用国内镜像源以提高下载速度
-RUN npm config set registry https://mirrors.cloud.tencent.com/npm/
-# RUN npm config set registry https://registry.npm.taobao.org/
-
-# npm 安装依赖
-RUN npm install
-
-# 将当前目录（dockerfile所在目录）下所有文件都拷贝到工作目录下（.dockerignore中文件除外）
-COPY . /app
-
-# 执行启动命令
-# 写多行独立的CMD命令是错误写法！只有最后一行CMD命令会被执行，之前的都会被忽略，导致业务报错。
-# 请参考[Docker官方文档之CMD命令](https://docs.docker.com/engine/reference/builder/#cmd)
-CMD ["npm", "start"]
-```
-
-2、进入 [腾讯云托管](https://tcb.cloud.tencent.com/dev#/platform-run/service/create?type=package),
-
-3、选择 ```通过本地代码``` 部署，
-
-4、填写配置信息:
-
-  * 代码包类型: 选择文件夹
-  * 代码包: 点击选择 cloudrun-express 目录，并上传目录文件
-  * 服务名称: 填写服务名称
-  * 部署类型: 选择容器服务型
-  * 端口: 默认填写 3000
-  * 目标目录: 默认为空
-  * Dockerfile 名称: Dockerfile
-  * 环境变量: 如果有按需要填写
-  * 公网访问: 默认打开
-  * 内网访问: 默认关闭
-
-5、配置填写完成之后，点击部署等待部署完成，
-
-6、部署完成之后，跳转到服务概述页面，点击默认域名进行公网访问及测试。
+现行部署见 `docs/ops.local.md`。仓库中的 `Dockerfile` 是早期云托管镜像，不是现在的发布方式。

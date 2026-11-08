@@ -71,8 +71,7 @@
 
 ### douyin / bilibili
 
-- 已预留类型
-- 认证逻辑尚未实现
+调用会抛出未实现错误，不能用来登录。
 
 ---
 
@@ -106,6 +105,8 @@ NODE_ENV=production
 ENABLE_TEST_MODE=false
 TOKEN_SECRET=<strong-random-secret>
 ```
+
+`NODE_ENV` 为 `production` 或 `release` 且未设置 `TOKEN_SECRET` 时，进程会在启动时退出。未授权时的 `msg` 是 `Authentication required. Please provide a valid token.` 或 `Invalid or expired token. Please login again.`
 
 ---
 

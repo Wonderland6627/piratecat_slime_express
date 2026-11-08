@@ -1,93 +1,67 @@
-# 快速开始（5 分钟）
+# 快速开始
 
 ## 1. 安装与启动
+
+需要 Node.js 20。
 
 ```bash
 npm install
 npm start
 ```
 
-默认地址：`http://localhost:3000`
+默认地址：`http://localhost:3000`。环境变量见 [环境配置](./环境配置-ENV_SETUP.md)。
 
----
+本地联调至少：
 
-## 2. 开发环境最小配置
-
-创建 `.env`（示例）：
-
-```bash
+```env
 NODE_ENV=development
 ENABLE_TEST_MODE=true
-TCB_ENV=your-env-id
-TOKEN_SECRET=your-dev-secret
+TCB_ENV=云开发环境ID
+TCB_SECRET_ID=
+TCB_SECRET_KEY=
+TOKEN_SECRET=本地随机串
 ```
 
-如需本地直连 CloudBase（非服务角色），再补充：
+## 2. Editor 登录
+
+`platform` 会转成小写，测试模式未打开时 `editor` 不可用。下面是 bash。
 
 ```bash
-TCB_SECRET_ID=your-secret-id
-TCB_SECRET_KEY=your-secret-key
-```
-
----
-
-## 3. 快速联调（Editor 平台）
-
-> 以下命令使用 `editor` 测试模式登录。
-
-```bash
-# 1) 获取 token
 TOKEN=$(curl -s -X POST http://localhost:3000/api/minigame/getCode2Session \
   -H "Content-Type: application/json" \
   -d '{"platform":"editor","code":"local_test_user"}' | jq -r '.data.token')
 
-# 2) 拉取用户信息（自动建档）
 curl -X POST http://localhost:3000/api/minigame/getUserGameInfoV2 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{}"
 
-# 3) 增加 100 金币（resourceType=1）
 curl -X POST http://localhost:3000/api/minigame/updateResource \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"resourceType":1,"change":100,"source":"debug_add_coin"}'
 ```
 
----
+第一次 `getUserGameInfoV2` 会建档。没带 Token 时返回 `Authentication required. Please provide a valid token.`
 
-## 4. 当前核心接口
+## 3. 接口
 
-所有业务接口前缀：`/api/minigame`
+业务接口前缀 `/api/minigame`，全部是 POST，除登录外都要 Token。
 
-- `POST /getCode2Session`
-- `POST /getUserWXContext`
-- `POST /getUserGameInfoV2`
-- `POST /setUserGameInfoV2`
-- `POST /getUserRankListV2`
-- `POST /getLevelsConfigV2`
-- `POST /updateResource`
-- `POST /getResources`
-- `POST /claimLevelReward`
-- `POST /claimDailyCheckin`
-- `POST /claimLevelChest`
+- `getCode2Session`
+- `getUserWXContext`
+- `getUserGameInfoV2`
+- `setUserGameInfoV2`
+- `debugSetUserGameInfo`（还要测试模式）
+- `getUserRankListV2`
+- `getLevelsConfigV2`
+- `updateResource`
+- `getResources`
+- `claimLevelReward`
+- `claimDailyCheckin`
+- `claimLevelChest`
+- `claimAdsGiftPack`
 
----
+另外：`GET /health`、`GET /api/version`、`POST /api/time`。
 
-## 5. 常见问题
-
-- `Editor platform is only available in test mode`
-  - 检查 `ENABLE_TEST_MODE=true`
-- `Authentication required`
-  - 检查 `Authorization: Bearer <token>` 头
-- `User not found`
-  - 先调用一次 `getUserGameInfoV2` 触发建档
-
----
-
-## 6. 下一步
-
-- 详细接口字段：看 `接口参考-API_REFERENCE.md`
-- 认证细节：看 `认证指南-AUTH_GUIDE.md`
-- 环境变量：看 `环境配置-ENV_SETUP.md`
-- 部署流程：看 `部署指南-DEPLOYMENT_GUIDE.md`
+字段见 [接口参考](./接口参考-API_REFERENCE.md)，登录规则见 [认证指南](./认证指南-AUTH_GUIDE.md)。线上地址在 `ops.local.md`。

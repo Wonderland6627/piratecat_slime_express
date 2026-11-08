@@ -24,9 +24,10 @@
 
 - `0` 成功
 - `-1` 通用错误
-- `-2` 未授权
-- `-3` 未找到
-- `-4` 参数校验失败
+- `-2` 未授权（HTTP 401）
+- `-3` 未找到（HTTP 404）
+- `-4` 参数校验失败（HTTP 400）
+- `-5` 资源不足
 
 ---
 
@@ -47,8 +48,9 @@
 
 说明：
 
-- `platform` 支持：`wechat` / `editor` / `douyin` / `bilibili`
-- `editor` 平台仅在 `ENABLE_TEST_MODE=true` 时可用
+- `platform` 会转成小写。`wechat` 和 `editor` 可用
+- `douyin`、`bilibili` 会直接返回未实现
+- `editor` 仅在 `ENABLE_TEST_MODE=true` 时可用。`code` 当作测试 openid；不传则用 `TEST_OPENID`，再没有就是 `default`
 
 响应 `data`：
 
@@ -88,7 +90,7 @@
 
 #### `POST /api/minigame/getUserGameInfoV2`
 
-首次请求不存在用户会自动建档。
+没有档案时会创建。新建时 `msg` 为 `no result found, created empty info`，已有档案时为 `get user game info success`。
 
 响应 `data`（示例）：
 
@@ -129,7 +131,7 @@
 { "limit": 100 }
 ```
 
-返回按 `progressLevelID` 降序的用户列表（会带上当前用户兜底逻辑）。
+只包含 `progressLevelID > 0` 且 `nickName` 非空的用户，按 `progressLevelID` 降序。当前用户不在列表里、但进度大于 0 时，可能被补进列表。默认 `limit` 为 100。
 
 #### `POST /api/minigame/getLevelsConfigV2`
 
@@ -139,7 +141,7 @@
 { "levelId": "level-doc-id" }
 ```
 
-返回 `Levels` 集合中对应文档。
+返回 CloudBase `Levels` 集合中的文档。不传 `levelId` 时使用 `config/constants.js` 的 `DEFAULTS.DEFAULT_LEVEL_ID`。
 
 ### 4) 资源系统
 
@@ -212,6 +214,20 @@
   "goods": {}
 }
 ```
+
+#### `POST /api/minigame/claimAdsGiftPack`
+
+`rewardId` 必须是数字，并且在 Luban `TbGlobalConfig.ad_reward_pack_ids` 里。
+
+```json
+{ "rewardId": 1001 }
+```
+
+响应 `data`：`rewards`、`resources`、`goods`。
+
+#### `POST /api/minigame/debugSetUserGameInfo`
+
+仅 `ENABLE_TEST_MODE=true` 时可调用，请求体与 `setUserGameInfoV2` 相同，按 Token 里的用户覆盖档案。
 
 #### `POST /api/minigame/claimLevelChest`
 

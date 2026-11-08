@@ -4,6 +4,9 @@ node_modules/
 # Environment variables
 .env
 
+# 本机运维备忘（服务器地址、目录、存储桶核对），不入库
+docs/ops.local.md
+
 # Logs
 logs
 *.log
