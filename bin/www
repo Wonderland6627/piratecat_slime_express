@@ -5,6 +5,7 @@ const startTime = Date.now();
 var app = require('../app');
 var http = require('http');
 var { logger } = require('../utils/logger');
+var db = require('../utils/db');
 
 var port = parseInt(process.env.PORT, 10) || 3000;
 app.set('port', port);
@@ -39,10 +40,28 @@ function onListening() {
 
   // 后台异步预热数据库连接，不阻塞健康检查响应
   setImmediate(() => {
-    try {
-      require('../utils/cloudbaseDB').warmUp();
-    } catch (e) {
+    db.warmUp().catch((e) => {
       logger.warn('[DB] Background warm-up failed', { error: e.message });
-    }
+    });
   });
 }
+
+async function shutdown(signal) {
+  logger.info(`[Shutdown] Received ${signal}, closing server...`);
+  server.close(async () => {
+    try {
+      await db.close();
+    } catch (e) {
+      logger.warn('[Shutdown] DB close failed', { error: e.message });
+    }
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    logger.error('[Shutdown] Forced exit after timeout');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

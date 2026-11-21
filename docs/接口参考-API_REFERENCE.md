@@ -121,7 +121,7 @@
 }
 ```
 
-### 3) 排行榜与关卡
+### 3) 排行榜
 
 #### `POST /api/minigame/getUserRankListV2`
 
@@ -133,15 +133,9 @@
 
 只包含 `progressLevelID > 0` 且 `nickName` 非空的用户，按 `progressLevelID` 降序。当前用户不在列表里、但进度大于 0 时，可能被补进列表。默认 `limit` 为 100。
 
-#### `POST /api/minigame/getLevelsConfigV2`
+#### `POST /api/minigame/getLevelsConfigV2`（已废弃）
 
-请求示例（可选）：
-
-```json
-{ "levelId": "level-doc-id" }
-```
-
-返回 CloudBase `Levels` 集合中的文档。不传 `levelId` 时使用 `config/constants.js` 的 `DEFAULTS.DEFAULT_LEVEL_ID`。
+关卡配置已改为客户端本地 `levels.json` 加载。该接口保留兼容路由，调用时返回 404。
 
 ### 4) 资源系统
 

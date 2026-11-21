@@ -59,6 +59,7 @@ router.post('/getUserRankListV2',
 
 /**
  * POST /api/minigame/getLevelsConfigV2
+ * Deprecated: levels are loaded from local client assets. Kept for compatibility (returns 404).
  */
 router.post('/getLevelsConfigV2',
   authMiddleware,

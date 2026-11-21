@@ -1,5 +1,5 @@
 // 物品服务层 —— 管理 goods 类型物品的增减
-const cloudbaseDB = require('../utils/cloudbaseDB');
+const db = require('../utils/db');
 const { logger } = require('../utils/logger');
 const configManager = require('../config/luban/configManager');
 
@@ -9,7 +9,7 @@ const configManager = require('../config/luban/configManager');
  * @returns {Promise<Object>} goods map e.g. { 1001: 3, 1002: 1 }
  */
 async function getGoods(openid) {
-  const userData = await cloudbaseDB.findUserByOpenID(openid);
+  const userData = await db.findUserByOpenID(openid);
   if (!userData) throw new Error('User not found');
   return userData.goods || {};
 }
@@ -38,7 +38,7 @@ async function addGoods(openid, goodsId, amount, source) {
   validateGoodsId(goodsId);
   if (amount <= 0) throw new Error('Add amount must be positive');
 
-  const updatedUser = await cloudbaseDB.incrementGoods(openid, goodsId, amount);
+  const updatedUser = await db.incrementGoods(openid, goodsId, amount);
   const finalValue = (updatedUser.goods && updatedUser.goods[goodsId]) ?? amount;
 
   logger.info(`[Goods] +${amount} goods(${goodsId}) from ${source}. Current: ${finalValue}`, { openid });
@@ -57,7 +57,7 @@ async function consumeGoods(openid, goodsId, amount, source) {
   validateGoodsId(goodsId);
   if (amount <= 0) throw new Error('Consume amount must be positive');
 
-  const userData = await cloudbaseDB.findUserByOpenID(openid);
+  const userData = await db.findUserByOpenID(openid);
   if (!userData) throw new Error('User not found');
 
   const currentGoods = userData.goods || {};
@@ -67,7 +67,7 @@ async function consumeGoods(openid, goodsId, amount, source) {
     throw new Error(`Insufficient ${name}. Current: ${currentValue}, Need: ${amount}`);
   }
 
-  const updatedUser = await cloudbaseDB.incrementGoods(openid, goodsId, -amount);
+  const updatedUser = await db.incrementGoods(openid, goodsId, -amount);
   const finalValue = (updatedUser.goods && updatedUser.goods[goodsId]) ?? (currentValue - amount);
 
   logger.info(`[Goods] -${amount} goods(${goodsId}) from ${source}. Current: ${finalValue}`, { openid });
@@ -93,15 +93,13 @@ async function batchAddGoods(openid, updates, extraSets = {}) {
   }
 
   if (Object.keys(increments).length === 0 && Object.keys(extraSets).length === 0) {
-    const userData = await cloudbaseDB.findUserByOpenID(openid);
+    const userData = await db.findUserByOpenID(openid);
     return userData?.goods || {};
   }
 
-  const updatedUser = await cloudbaseDB.batchUpdateAndIncrement(openid, extraSets, {}, increments);
+  const updatedUser = await db.batchUpdateAndIncrement(openid, extraSets, {}, increments);
   return updatedUser.goods || {};
 }
-
-// ==================== 内部工具方法 ====================
 
 function validateGoodsId(goodsId) {
   const tbGoods = configManager.tables.tbgoods;

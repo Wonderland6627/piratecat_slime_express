@@ -1,6 +1,6 @@
 // 通关奖励结算服务层
 const { logger } = require('../utils/logger');
-const cloudbaseDB = require('../utils/cloudbaseDB');
+const db = require('../utils/db');
 const resourceService = require('./resourceService');
 const configManager = require('../config/luban/configManager');
 const { RESOURCE_TYPE, RESOURCE_SOURCE, ITEM_TYPE } = require('../config/constants');
@@ -19,7 +19,7 @@ async function claimLevelReward(openid, levelId, watchedAd) {
   const coinRes = configManager.tables.tbresource.get(RESOURCE_TYPE.COIN);
   if (!coinRes) throw new Error('TbResource COIN not found');
 
-  const user = await cloudbaseDB.findUserByOpenID(openid);
+  const user = await db.findUserByOpenID(openid);
   if (!user) throw new Error('User not found');
 
   const isFirstClear = levelId > (user.progressLevelID || 0);

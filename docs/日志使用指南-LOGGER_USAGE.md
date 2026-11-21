@@ -28,7 +28,7 @@ logs/
 const { logger } = require('../utils/logger');
 
 logger.info('User login success', { openid, platform });
-logger.warn('Config missing', { key: 'TCB_ENV' });
+logger.warn('Config missing', { key: 'DATABASE_URL' });
 logger.error('Database insert failed', { error: err.message });
 ```
 

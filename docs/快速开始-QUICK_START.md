@@ -16,11 +16,11 @@ npm start
 ```env
 NODE_ENV=development
 ENABLE_TEST_MODE=true
-TCB_ENV=云开发环境ID
-TCB_SECRET_ID=
-TCB_SECRET_KEY=
 TOKEN_SECRET=本地随机串
+DATABASE_URL=postgresql://slime_dev_user:密码@127.0.0.1:15432/slime_dev
 ```
+
+本地连云服测试库前先运行 `scripts/start-dev-db-tunnel.bat`。
 
 ## 2. Editor 登录
 
@@ -54,13 +54,14 @@ curl -X POST http://localhost:3000/api/minigame/updateResource \
 - `setUserGameInfoV2`
 - `debugSetUserGameInfo`（还要测试模式）
 - `getUserRankListV2`
-- `getLevelsConfigV2`
 - `updateResource`
 - `getResources`
 - `claimLevelReward`
 - `claimDailyCheckin`
 - `claimLevelChest`
 - `claimAdsGiftPack`
+
+`getLevelsConfigV2` 已废弃（返回 404），关卡由客户端本地 `levels.json` 加载。
 
 另外：`GET /health`、`GET /api/version`、`POST /api/time`。
 

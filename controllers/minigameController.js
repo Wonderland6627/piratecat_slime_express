@@ -12,11 +12,9 @@ const { RESPONSE_CODE } = require('../config/constants');
 async function getCode2Session(req, res, next) {
   try {
     const code = req.body.code || req.query.code;
-    // 检测平台类型
     const { PlatformAuthFactory } = require('../utils/platformAuth');
     const platform = PlatformAuthFactory.detectPlatform(req);
-    
-    // 使用新的getSession方法（支持多平台）
+
     const sessionInfo = await authService.getSession(code, platform);
     return success(res, sessionInfo);
   } catch (err) {
@@ -44,11 +42,11 @@ async function getUserGameInfo(req, res, next) {
   try {
     const openid = req.user.openid;
     const { data, isNewRecord } = await userService.getUserGameInfo(openid);
-    
-    const msg = isNewRecord 
-      ? 'no result found, created empty info' 
+
+    const msg = isNewRecord
+      ? 'no result found, created empty info'
       : 'get user game info success';
-    
+
     return success(res, data, msg);
   } catch (err) {
     next(err);
@@ -75,7 +73,7 @@ async function getUserRankList(req, res, next) {
   try {
     const currentOpenID = req.user.openid;
     const limit = parseInt(req.body.limit || req.query.limit || 100);
-    
+
     const rankList = await gameService.getUserRankList(limit, currentOpenID);
     return success(res, rankList, 'get rank list v2 success');
   } catch (err) {
@@ -97,18 +95,15 @@ async function debugSetUserGameInfo(req, res, next) {
 }
 
 /**
- * 获取关卡配置
+ * 远程关卡配置已废弃：客户端读取本地 levels.json
  */
 async function getLevelsConfig(req, res, next) {
   try {
-    const levelId = req.body.levelId || req.query.levelId;
-    const levelData = await gameService.getLevelsConfig(levelId);
-    
-    if (!levelData) {
-      throw new AppError('level not found', RESPONSE_CODE.NOT_FOUND, 404);
-    }
-    
-    return success(res, levelData, 'get levels config success');
+    throw new AppError(
+      'getLevelsConfigV2 is deprecated; levels are loaded from local client assets',
+      RESPONSE_CODE.NOT_FOUND,
+      404
+    );
   } catch (err) {
     next(err);
   }
@@ -123,4 +118,3 @@ module.exports = {
   getUserRankList,
   getLevelsConfig
 };
-

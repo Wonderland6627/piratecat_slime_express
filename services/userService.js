@@ -1,5 +1,5 @@
 // 用户服务层（业务逻辑）
-const cloudbaseDB = require('../utils/cloudbaseDB');
+const db = require('../utils/db');
 const { getDefaultResources, normalizeResources } = require('./resourceService');
 
 /**
@@ -8,12 +8,12 @@ const { getDefaultResources, normalizeResources } = require('./resourceService')
  * @returns {Promise<Object>}
  */
 async function getUserGameInfo(openid) {
-  let userData = await cloudbaseDB.findUserByOpenID(openid);
+  let userData = await db.findUserByOpenID(openid);
   let isNewRecord = false;
-  
+
   if (!userData) {
     const now = new Date();
-    userData = await cloudbaseDB.createUser({
+    userData = await db.createUser({
       openID: openid,
       resources: getDefaultResources(),
       goods: {},
@@ -26,12 +26,12 @@ async function getUserGameInfo(openid) {
   if (!isNewRecord) {
     const normalizedResources = normalizeResources(userData.resources);
     if (hasIncompleteResources(userData.resources, normalizedResources)) {
-      userData = await cloudbaseDB.updateUser(openid, { resources: normalizedResources });
+      userData = await db.updateUser(openid, { resources: normalizedResources });
     } else {
       userData = { ...userData, resources: normalizedResources };
     }
   }
-  
+
   return {
     data: userData,
     isNewRecord
@@ -50,22 +50,22 @@ async function setUserGameInfo(openid, gameInfo) {
   if (cleanGameInfo.resources !== undefined && cleanGameInfo.resources !== null) {
     cleanGameInfo.resources = normalizeResources(cleanGameInfo.resources);
   }
-  
-  const existingUser = await cloudbaseDB.findUserByOpenID(openid);
-  
+
+  const existingUser = await db.findUserByOpenID(openid);
+
   if (existingUser) {
-    return await cloudbaseDB.updateUser(openid, cleanGameInfo);
-  } else {
-    const now = new Date();
-    return await cloudbaseDB.createUser({
-      openID: openid,
-      resources: getDefaultResources(),
-      goods: {},
-      createdAt: now,
-      updatedAt: now,
-      ...cleanGameInfo
-    });
+    return await db.updateUser(openid, cleanGameInfo);
   }
+
+  const now = new Date();
+  return await db.createUser({
+    openID: openid,
+    resources: getDefaultResources(),
+    goods: {},
+    createdAt: now,
+    updatedAt: now,
+    ...cleanGameInfo
+  });
 }
 
 /**

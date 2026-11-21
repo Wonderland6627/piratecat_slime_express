@@ -1,5 +1,5 @@
 // 统一资源服务层 —— 替代原 currencyService + energyService
-const cloudbaseDB = require('../utils/cloudbaseDB');
+const db = require('../utils/db');
 const { logger } = require('../utils/logger');
 const { RESOURCE_TYPE, RESOURCE_CONFIG, RESPONSE_CODE } = require('../config/constants');
 const { AppError } = require('../middlewares/errorHandler');
@@ -10,7 +10,7 @@ const { AppError } = require('../middlewares/errorHandler');
  * @returns {Promise<Object>} resources map e.g. { 1: 500, 2: 80, 3: 0 }
  */
 async function getResources(openid) {
-  const userData = await cloudbaseDB.findUserByOpenID(openid);
+  const userData = await db.findUserByOpenID(openid);
   if (!userData) throw new Error('User not found');
 
   return normalizeResources(userData.resources);
@@ -42,7 +42,7 @@ async function updateResource(openid, resourceType, change, source) {
   if (change === 0) throw new Error('Change amount cannot be 0');
 
   const config = RESOURCE_CONFIG[resourceType];
-  const userData = await cloudbaseDB.findUserByOpenID(openid);
+  const userData = await db.findUserByOpenID(openid);
   if (!userData) throw new Error('User not found');
 
   const rawResources = userData.resources || {};
@@ -62,14 +62,14 @@ async function updateResource(openid, resourceType, change, source) {
     newValue = config.max;
     if (change <= 0) {
       if (!hasCurrentResourceField) {
-        await cloudbaseDB.setResource(openid, resourceType, currentValue);
+        await db.setResource(openid, resourceType, currentValue);
       }
       logger.info(`[Resource] ${config.key} already at max(${config.max}), skip`, { openid });
       return { resourceType, value: currentValue, change: 0 };
     }
   }
 
-  const updatedUser = await cloudbaseDB.setResource(openid, resourceType, newValue);
+  const updatedUser = await db.setResource(openid, resourceType, newValue);
   const finalValue = (updatedUser.resources && updatedUser.resources[resourceType]) ?? newValue;
 
   logger.info(`[Resource] ${change > 0 ? 'added' : 'deducted'} ${Math.abs(change)} ${config.key} from ${source}. Current: ${finalValue}`, { openid });
@@ -82,10 +82,11 @@ async function updateResource(openid, resourceType, change, source) {
  * @param {string} openid
  * @param {Array<{ resourceType: number, change: number, source: string }>} updates
  * @param {Object} [extraSets] - 额外的 set 字段（如 progressLevelID）
+ * @param {number|null} [claimedChestIdToAdd] - 原子追加已领宝箱关卡 ID
  * @returns {Promise<Object>} updated resources map
  */
-async function batchUpdateResources(openid, updates, extraSets = {}) {
-  const userData = await cloudbaseDB.findUserByOpenID(openid);
+async function batchUpdateResources(openid, updates, extraSets = {}, claimedChestIdToAdd = null) {
+  const userData = await db.findUserByOpenID(openid);
   if (!userData) throw new Error('User not found');
 
   const rawResources = userData.resources || {};
@@ -144,11 +145,21 @@ async function batchUpdateResources(openid, updates, extraSets = {}) {
     setFields[resourceFieldPath] = value;
   }
 
-  if (Object.keys(increments).length === 0 && Object.keys(setFields).length === 0) {
+  if (
+    Object.keys(increments).length === 0 &&
+    Object.keys(setFields).length === 0 &&
+    claimedChestIdToAdd === null
+  ) {
     return currentResources;
   }
 
-  const updatedUser = await cloudbaseDB.batchUpdateAndIncrement(openid, setFields, increments);
+  const updatedUser = await db.batchUpdateAndIncrement(
+    openid,
+    setFields,
+    increments,
+    {},
+    claimedChestIdToAdd
+  );
   return normalizeResources(updatedUser.resources);
 }
 

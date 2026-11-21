@@ -1,6 +1,6 @@
 # Slime Express
 
-小游戏后端，Express 进程，业务数据在腾讯云开发（CloudBase）文档数据库。
+小游戏后端，Express 进程，业务数据在云服本机 PostgreSQL。
 
 线上环境、机器规格、域名、部署目录和对象存储写在 `docs/ops.local.md`。该文件不入库。分析部署、容量或资源放在哪里时，先读这个文件。
 
@@ -25,13 +25,13 @@ npm start
 ```env
 NODE_ENV=development
 ENABLE_TEST_MODE=true
-TCB_ENV=云开发环境ID
 TOKEN_SECRET=本地随机串
-TCB_SECRET_ID=
-TCB_SECRET_KEY=
+DATABASE_URL=postgresql://slime_dev_user:密码@127.0.0.1:15432/slime_dev
 WX_APPID=
 WX_SECRET=
 ```
+
+本地连云服测试库前先运行 `scripts/start-dev-db-tunnel.bat`。
 
 服务默认监听 `http://localhost:3000`，可用环境变量 `PORT` 覆盖。启动后访问 `GET /health` 确认进程起来了。
 
@@ -46,6 +46,8 @@ services/      业务逻辑
 middlewares/   认证、校验、错误处理
 utils/         数据库、日志、第三方调用
 config/        配置
+sql/           PostgreSQL 建表脚本
+scripts/       安装、导入、备份、SSH 隧道脚本
 ```
 
 接口字段和联调步骤看 [快速开始](./docs/快速开始-QUICK_START.md) 和 [接口参考](./docs/接口参考-API_REFERENCE.md)。成功响应是 `{ "code": 0, "data": {}, "msg": "success" }`。
@@ -57,6 +59,8 @@ config/        配置
 - [环境配置](./docs/环境配置-ENV_SETUP.md)
 - [认证指南](./docs/认证指南-AUTH_GUIDE.md)
 - [接口参考](./docs/接口参考-API_REFERENCE.md)
+- [PostgreSQL配置](./docs/PostgreSQL配置-POSTGRES_CONFIG.md)
+- [迁移手册](./docs/迁移手册-POSTGRES_MIGRATION.md)
 - [日志使用指南](./docs/日志使用指南-LOGGER_USAGE.md)
 
 现行部署见 `docs/ops.local.md`。仓库中的 `Dockerfile` 是早期云托管镜像，不是现在的发布方式。

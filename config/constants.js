@@ -42,14 +42,8 @@ function buildResourceConfig() {
 }
 
 module.exports = {
-  COLLECTIONS: {
-    USER_GAME_INFOS: 'UserGameInfos',
-    LEVELS: 'Levels'
-  },
-  
   DEFAULTS: {
-    RANK_LIMIT: 100,
-    DEFAULT_LEVEL_ID: 'c0a2d8e468439784021a265910ba40eb'
+    RANK_LIMIT: 100
   },
   
   RESPONSE_CODE: {
