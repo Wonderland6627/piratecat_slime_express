@@ -42,4 +42,4 @@ sudo bash scripts/setup-postgres-ubuntu.sh
 ## 备份
 
 每日备份脚本：`scripts/backup-postgres.sh`  
-建议在宝塔「计划任务」每天 04:00 执行。
+建议在宝塔「计划任务」每天 04:00 执行。脚本不会自己注册计划任务。2026-11-23 核对时，云服 crontab 里没有这条备份，`/www/backup/postgres` 是空目录。

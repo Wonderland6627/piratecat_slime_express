@@ -32,14 +32,18 @@ if errorlevel 1 (
   exit /b 1
 )
 
+set "SSH_KEY=%USERPROFILE%\.ssh\slime_server"
+set "SSH_I="
+if exist "%SSH_KEY%" set SSH_I=-o IdentitiesOnly=yes -i "%SSH_KEY%"
+
 echo SSH %SSH_USER%@%SSH_HOST%
 echo bash %REMOTE_SCRIPT% %ENV_NAME% %CMD% %EXTRA%
 echo.
 
 if "%EXTRA%"=="" (
-  ssh %SSH_USER%@%SSH_HOST% "bash %REMOTE_SCRIPT% %ENV_NAME% %CMD%"
+  ssh %SSH_I% %SSH_USER%@%SSH_HOST% "bash %REMOTE_SCRIPT% %ENV_NAME% %CMD%"
 ) else (
-  ssh %SSH_USER%@%SSH_HOST% "bash %REMOTE_SCRIPT% %ENV_NAME% %CMD% %EXTRA%"
+  ssh %SSH_I% %SSH_USER%@%SSH_HOST% "bash %REMOTE_SCRIPT% %ENV_NAME% %CMD% %EXTRA%"
 )
 exit /b %ERRORLEVEL%
 

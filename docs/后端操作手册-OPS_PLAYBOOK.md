@@ -20,6 +20,8 @@
 | 测试服 `dev` | `/www/apps/slime-express/piratecat_slime_express_dev` | `slime_dev` | `https://dev.slime.piratecat.top` |
 | 正式服 `prod` | `/www/apps/slime-express/piratecat_slime_express` | `slime_prod` | `https://slime.piratecat.top` |
 
+机器、端口、分支和哪边已经部署到哪次提交，写在 `ops.local.md`。测试服跟踪 `minigame/develop`，正式服跟踪 `minigame/release`，两边不会因为一次 pull 变成同一份代码。
+
 ## 命令在哪执行
 
 云服宝塔里打开终端，进入对应目录后执行。测试服例子：
@@ -37,7 +39,7 @@ bash scripts/server-ops.sh dev apply-sql sql/002_xxx.sql
 bash scripts/server-ops.sh prod backup
 ```
 
-自己电脑上也可以双击或在仓库里执行 `scripts\server-ops.bat`，它会 SSH 到云服跑同一条命令。第一次会问 SSH 密码。新脚本还不在服务器上时，先用宝塔把代码传上去，再跑。
+自己电脑上也可以双击或在仓库里执行 `scripts\server-ops.bat`，它会 SSH 到云服跑同一条命令。本机有 `%USERPROFILE%\.ssh\slime_server` 时用这把密钥；没有密钥时才问 root 密码。新脚本还不在服务器上时，先用宝塔把代码传上去，再跑。
 
 ```bat
 scripts\server-ops.bat dev check
@@ -60,7 +62,7 @@ scripts\server-ops.bat prod restart
 `check` 里要看到：
 
 - `/health` 是 `status: ok`。这只说明进程还在，不说明数据库是好的。
-- `/ready` 是 `database: up`。
+- `/ready` 是 `database: up`。正式服还没部署带这条路由的提交时会是 404，那是旧代码，不是数据库故障。以 `ops.local.md` 里两边的提交为准。
 - `/api/version` 里的 `startedAt` 是刚才重启的时间。
 - 日志里有 `Connected successfully` 和 `Luban config loaded`。
 

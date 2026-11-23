@@ -28,7 +28,11 @@ if errorlevel 1 (
   exit /b 1
 )
 
-ssh -N -L %LOCAL_PORT%:127.0.0.1:%REMOTE_PORT% %SSH_USER%@%SSH_HOST%
+set "SSH_KEY=%USERPROFILE%\.ssh\slime_server"
+set "SSH_I="
+if exist "%SSH_KEY%" set SSH_I=-o IdentitiesOnly=yes -i "%SSH_KEY%"
+
+ssh %SSH_I% -N -L %LOCAL_PORT%:127.0.0.1:%REMOTE_PORT% %SSH_USER%@%SSH_HOST%
 echo.
 echo Tunnel closed.
 pause
