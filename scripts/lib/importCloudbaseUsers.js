@@ -30,6 +30,22 @@ function extractId(id) {
 }
 
 /**
+ * 把资源和物品收成整数。小数截断，无法转换的值丢掉。
+ * @param {Object} obj
+ * @returns {Object<string, number>}
+ */
+function coerceIntMap(obj) {
+  const out = {};
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
+  for (const [key, value] of Object.entries(obj)) {
+    const n = Math.trunc(Number(value));
+    if (!Number.isFinite(n)) continue;
+    out[String(key)] = n;
+  }
+  return out;
+}
+
+/**
  * @param {Object} doc
  * @param {Object} defaultResources
  * @returns {Object|null}
@@ -51,12 +67,12 @@ function normalizeUserDocument(doc, defaultResources) {
   const nickName = doc.nickName ?? nested.nickName ?? '';
   const avatarUrl = doc.avatarUrl ?? nested.avatarUrl ?? '';
 
-  const rawResources = (doc.resources && typeof doc.resources === 'object')
+  const rawResources = (doc.resources && typeof doc.resources === 'object' && !Array.isArray(doc.resources))
     ? doc.resources
     : {};
-  const resources = { ...defaultResources, ...rawResources };
+  const resources = coerceIntMap({ ...defaultResources, ...rawResources });
 
-  const goods = (doc.goods && typeof doc.goods === 'object') ? doc.goods : {};
+  const goods = coerceIntMap((doc.goods && typeof doc.goods === 'object') ? doc.goods : {});
   const claimedLevelChests = Array.isArray(doc.claimedLevelChests)
     ? doc.claimedLevelChests.map(Number).filter(n => Number.isFinite(n))
     : [];
@@ -169,6 +185,7 @@ function mergeUsersByOpenID(normalizedUsers) {
 module.exports = {
   parseCloudDate,
   extractId,
+  coerceIntMap,
   normalizeUserDocument,
   parseExportDocuments,
   mergeUsersByOpenID

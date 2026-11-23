@@ -102,12 +102,63 @@ async function findUserByOpenID(openID) {
  * @param {Object} userData
  * @returns {Promise<Object>}
  */
+/**
+ * PostgreSQL unique_violation
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isUniqueViolation(error) {
+  return Boolean(error && error.code === '23505');
+}
+
+/**
+ * 把增减和绝对赋值收成一份 JSON，同一 key 上绝对赋值覆盖增减。
+ * @param {Object} increments
+ * @param {Object} absoluteSets
+ * @returns {Object<string, { op: 'inc'|'set', n: number }>}
+ */
+function buildJsonOps(increments, absoluteSets) {
+  const ops = {};
+  for (const [key, amount] of Object.entries(increments || {})) {
+    const n = Math.trunc(Number(amount));
+    if (!Number.isFinite(n) || n === 0) continue;
+    ops[String(key)] = { op: 'inc', n };
+  }
+  for (const [key, value] of Object.entries(absoluteSets || {})) {
+    const n = Math.trunc(Number(value));
+    if (!Number.isFinite(n)) continue;
+    ops[String(key)] = { op: 'set', n };
+  }
+  return ops;
+}
+
+/**
+ * 用一份 JSON 参数合并进 jsonb 列。SQL 长度不随 key 数量增长。
+ * @param {'resources'|'goods'} column
+ * @param {string} paramRef
+ * @returns {string}
+ */
+function jsonbPatchSql(column, paramRef) {
+  return `COALESCE(${column}, '{}'::jsonb) || COALESCE((
+    SELECT jsonb_object_agg(
+      e.key,
+      to_jsonb(
+        CASE
+          WHEN e.value->>'op' = 'set' THEN (e.value->>'n')::int
+          ELSE COALESCE((${column}->>e.key)::int, 0) + COALESCE((e.value->>'n')::int, 0)
+        END
+      )
+    )
+    FROM jsonb_each(${paramRef}::jsonb) AS e(key, value)
+  ), '{}'::jsonb)`;
+}
+
 async function createUser(userData) {
+  const openID = userData?.openID;
   try {
     const pool = getPool();
     const now = new Date();
     const id = userData._id || userData.id || null;
-    const openID = userData.openID;
     if (!openID) throw new Error('openID is required');
 
     const resources = userData.resources || {};
@@ -157,7 +208,14 @@ async function createUser(userData) {
 
     return mapUserRow(result.rows[0]);
   } catch (error) {
-    logger.error('createUser error', { openID: userData?.openID, error: error.message });
+    if (isUniqueViolation(error) && openID) {
+      const existing = await findUserByOpenID(openID);
+      if (existing) {
+        logger.warn('createUser unique conflict, return existing user', { openID });
+        return existing;
+      }
+    }
+    logger.error('createUser error', { openID, error: error.message });
     throw error;
   }
 }
@@ -355,13 +413,93 @@ async function incrementGoods(openID, goodsId, amount) {
 }
 
 /**
- * 一次原子操作同时 set / inc resources / goods，并可追加 claimed chest
+ * 原子扣物品。余额不足或用户不存在时返回 null，不把数量扣成负数。
+ * @param {string} openID
+ * @param {number|string} goodsId
+ * @param {number} amount - 正数
+ * @returns {Promise<Object|null>}
+ */
+async function decrementGoods(openID, goodsId, amount) {
+  try {
+    const pool = getPool();
+    const key = String(goodsId);
+    const n = Math.trunc(Number(amount));
+    if (!Number.isFinite(n) || n <= 0) throw new Error('Decrement amount must be positive');
+
+    const result = await pool.query(
+      `UPDATE user_game_infos
+       SET goods = jsonb_set(
+             COALESCE(goods, '{}'::jsonb),
+             ARRAY[$2::text],
+             to_jsonb(COALESCE((goods->>$2)::int, 0) - $3::int),
+             true
+           ),
+           updated_at = NOW()
+       WHERE open_id = $1
+         AND COALESCE((goods->>$2)::int, 0) >= $3::int
+       RETURNING *`,
+      [openID, key, n]
+    );
+    return mapUserRow(result.rows[0] || null);
+  } catch (error) {
+    logger.error('decrementGoods error', { openID, goodsId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * 原子扣资源。字段缺失时按 defaultValue 计余额。不足时返回 null。
+ * @param {string} openID
+ * @param {number|string} resourceTypeId
+ * @param {number} amount - 正数
+ * @param {{ defaultValue?: number, min?: number }} [options]
+ * @returns {Promise<Object|null>}
+ */
+async function decrementResource(openID, resourceTypeId, amount, options = {}) {
+  try {
+    const pool = getPool();
+    const key = String(resourceTypeId);
+    const n = Math.trunc(Number(amount));
+    if (!Number.isFinite(n) || n <= 0) throw new Error('Decrement amount must be positive');
+
+    const defaultValue = Number.isFinite(Number(options.defaultValue))
+      ? Math.trunc(Number(options.defaultValue))
+      : 0;
+    const min = Number.isFinite(Number(options.min))
+      ? Math.trunc(Number(options.min))
+      : 0;
+
+    const result = await pool.query(
+      `UPDATE user_game_infos
+       SET resources = jsonb_set(
+             COALESCE(resources, '{}'::jsonb),
+             ARRAY[$2::text],
+             to_jsonb(COALESCE((resources->>$2)::int, $4::int) - $3::int),
+             true
+           ),
+           updated_at = NOW()
+       WHERE open_id = $1
+         AND COALESCE((resources->>$2)::int, $4::int) - $3::int >= $5::int
+       RETURNING *`,
+      [openID, key, n, defaultValue, min]
+    );
+    return mapUserRow(result.rows[0] || null);
+  } catch (error) {
+    logger.error('decrementResource error', { openID, resourceTypeId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * 一次更新同时 set / inc resources / goods。
+ * 传入 claimedChestIdToAdd 时，资源和物品与已领宝箱写在同一条 UPDATE 里，
+ * 并且只有进度够、且该宝箱还没领过时才会更新。更新不到行时返回 null。
  * @param {string} openID
  * @param {Object} sets - 直接赋值字段，如 { progressLevelID: 5 }；嵌套路径 resources.1 / goods.1001 也支持
  * @param {Object} resourceIncrements - { 1: 175, 2: 3 }
  * @param {Object} [goodsIncrements]
  * @param {number|null} [claimedChestIdToAdd]
- * @returns {Promise<Object>}
+ * @returns {Promise<Object|null>}
  */
 async function batchUpdateAndIncrement(
   openID,
@@ -376,7 +514,6 @@ async function batchUpdateAndIncrement(
     const values = [openID];
     let idx = 2;
 
-    // Flatten nested resource/goods absolute sets from CloudBase-style paths
     const absoluteResourceSets = {};
     const absoluteGoodsSets = {};
     const topLevelSets = {};
@@ -420,95 +557,60 @@ async function batchUpdateAndIncrement(
       values.push(topLevelSets.claimedLevelChests);
     }
 
-    // Build resources expression: start from current, apply absolute sets, then increments
-    const resourceOps = [];
-    for (const [resourceTypeId, amount] of Object.entries(resourceIncrements || {})) {
-      if (amount === 0) continue;
-      resourceOps.push({ type: 'inc', key: String(resourceTypeId), amount: Number(amount) });
-    }
-    for (const [resourceTypeId, value] of Object.entries(absoluteResourceSets)) {
-      resourceOps.push({ type: 'set', key: String(resourceTypeId), amount: Number(value) });
-    }
-
-    if (resourceOps.length > 0 && topLevelSets.resources === undefined) {
-      let resourcesExpr = `COALESCE(resources, '{}'::jsonb)`;
-      for (const op of resourceOps) {
-        if (op.type === 'set') {
-          resourcesExpr = `(${resourcesExpr} || jsonb_build_object($${idx}::text, to_jsonb($${idx + 1}::int)))`;
-          values.push(op.key, op.amount);
-          idx += 2;
-        } else {
-          resourcesExpr = `jsonb_set(
-            ${resourcesExpr},
-            ARRAY[$${idx}::text],
-            to_jsonb(COALESCE((${resourcesExpr}->>$${idx})::int, 0) + $${idx + 1}::int),
-            true
-          )`;
-          values.push(op.key, op.amount);
-          idx += 2;
-        }
+    if (topLevelSets.resources === undefined) {
+      const resourceOps = buildJsonOps(resourceIncrements, absoluteResourceSets);
+      if (Object.keys(resourceOps).length > 0) {
+        setClauses.push(`resources = ${jsonbPatchSql('resources', `$${idx}`)}`);
+        values.push(JSON.stringify(resourceOps));
+        idx += 1;
       }
-      setClauses.push(`resources = ${resourcesExpr}`);
     }
 
-    const goodsOps = [];
-    for (const [goodsId, amount] of Object.entries(goodsIncrements || {})) {
-      if (amount === 0) continue;
-      goodsOps.push({ type: 'inc', key: String(goodsId), amount: Number(amount) });
-    }
-    for (const [goodsId, value] of Object.entries(absoluteGoodsSets)) {
-      goodsOps.push({ type: 'set', key: String(goodsId), amount: Number(value) });
-    }
-
-    if (goodsOps.length > 0 && topLevelSets.goods === undefined) {
-      let goodsExpr = `COALESCE(goods, '{}'::jsonb)`;
-      for (const op of goodsOps) {
-        if (op.type === 'set') {
-          goodsExpr = `(${goodsExpr} || jsonb_build_object($${idx}::text, to_jsonb($${idx + 1}::int)))`;
-          values.push(op.key, op.amount);
-          idx += 2;
-        } else {
-          goodsExpr = `jsonb_set(
-            ${goodsExpr},
-            ARRAY[$${idx}::text],
-            to_jsonb(COALESCE((${goodsExpr}->>$${idx})::int, 0) + $${idx + 1}::int),
-            true
-          )`;
-          values.push(op.key, op.amount);
-          idx += 2;
-        }
+    if (topLevelSets.goods === undefined) {
+      const goodsOps = buildJsonOps({}, absoluteGoodsSets);
+      const goodsIncOps = buildJsonOps(goodsIncrements, {});
+      const mergedGoodsOps = { ...goodsIncOps, ...goodsOps };
+      if (Object.keys(mergedGoodsOps).length > 0) {
+        setClauses.push(`goods = ${jsonbPatchSql('goods', `$${idx}`)}`);
+        values.push(JSON.stringify(mergedGoodsOps));
+        idx += 1;
       }
-      setClauses.push(`goods = ${goodsExpr}`);
     }
 
+    let chestGuard = false;
     if (claimedChestIdToAdd !== null && claimedChestIdToAdd !== undefined) {
-      setClauses.push(
-        `claimed_level_chests = CASE
-           WHEN NOT ($${idx} = ANY(claimed_level_chests))
-           THEN array_append(claimed_level_chests, $${idx}::int)
-           ELSE claimed_level_chests
-         END`
-      );
-      values.push(Number(claimedChestIdToAdd));
+      const chestId = Math.trunc(Number(claimedChestIdToAdd));
+      if (!Number.isFinite(chestId)) throw new Error('claimedChestIdToAdd must be a number');
+      setClauses.push(`claimed_level_chests = array_append(claimed_level_chests, $${idx}::int)`);
+      values.push(chestId);
       idx += 1;
+      chestGuard = true;
     }
 
     setClauses.push('updated_at = NOW()');
 
-    if (setClauses.length === 1) {
-      // only updated_at — return current user
+    if (setClauses.length === 1 && !chestGuard) {
       return findUserByOpenID(openID);
+    }
+
+    const chestParam = chestGuard ? idx - 1 : null;
+    let whereSql = 'open_id = $1';
+    if (chestGuard) {
+      whereSql += ` AND progress_level_id >= $${chestParam}::int AND NOT ($${chestParam}::int = ANY(claimed_level_chests))`;
     }
 
     const result = await pool.query(
       `UPDATE user_game_infos
        SET ${setClauses.join(', ')}
-       WHERE open_id = $1
+       WHERE ${whereSql}
        RETURNING *`,
       values
     );
 
-    if (!result.rows[0]) throw new Error('User not found after batch update');
+    if (!result.rows[0]) {
+      if (chestGuard) return null;
+      throw new Error('User not found after batch update');
+    }
     return mapUserRow(result.rows[0]);
   } catch (error) {
     logger.error('batchUpdateAndIncrement error', { openID, error: error.message });
@@ -525,7 +627,10 @@ module.exports = {
   setResource,
   incrementResource,
   incrementGoods,
+  decrementResource,
+  decrementGoods,
   batchUpdateAndIncrement,
+  isUniqueViolation,
   mapUserRow,
   warmUp,
   close,

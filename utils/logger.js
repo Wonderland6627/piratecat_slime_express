@@ -25,7 +25,7 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.NODE_
 const HTTP_DETAIL_MODE = process.env.HTTP_LOG_DETAIL_MODE || (IS_PRODUCTION ? 'errors' : 'detailed');
 const INCLUDE_HTTP_BODY = process.env.HTTP_LOG_INCLUDE_BODY === 'true' || (!IS_PRODUCTION && HTTP_DETAIL_MODE === 'detailed');
 const INCLUDE_HTTP_RESPONSE = process.env.HTTP_LOG_INCLUDE_RESPONSE === 'true' || (!IS_PRODUCTION && HTTP_DETAIL_MODE === 'detailed');
-const SKIPPED_HTTP_LOG_PATHS = new Set(['/health', '/api/version']);
+const SKIPPED_HTTP_LOG_PATHS = new Set(['/health', '/ready', '/api/version']);
 const REDACTED_KEYS = new Set(['authorization', 'token', 'access_token', 'refresh_token', 'secret', 'wx_secret']);
 
 // 确保日志目录存在

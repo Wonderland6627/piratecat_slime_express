@@ -61,6 +61,21 @@ test('normalizeUserDocument merges existing resources over defaults', () => {
   assert.deepEqual(normalized.claimedLevelChests, [5, 2]);
 });
 
+test('normalizeUserDocument truncates fractional resource and goods values', () => {
+  const { coerceIntMap } = require('../scripts/lib/importCloudbaseUsers');
+  assert.deepEqual(coerceIntMap({ '1': 190.9, bad: 'nope', '2': '15' }), { '1': 190, '2': 15 });
+
+  const normalized = normalizeUserDocument({
+    _id: 'id3',
+    openID: 'ox3',
+    resources: { '1': 10.8 },
+    goods: { '1001': '3.2' }
+  }, { '1': 0, '2': 150 });
+
+  assert.deepEqual(normalized.resources, { '1': 10, '2': 150 });
+  assert.deepEqual(normalized.goods, { '1001': 3 });
+});
+
 test('parseExportDocuments reads sample JSONL fragment', () => {
   const sample = [
     '{"_id":"a","openID":"ox1","progressLevelID":1}',

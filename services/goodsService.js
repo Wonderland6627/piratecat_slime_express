@@ -57,18 +57,16 @@ async function consumeGoods(openid, goodsId, amount, source) {
   validateGoodsId(goodsId);
   if (amount <= 0) throw new Error('Consume amount must be positive');
 
-  const userData = await db.findUserByOpenID(openid);
-  if (!userData) throw new Error('User not found');
-
-  const currentGoods = userData.goods || {};
-  const currentValue = currentGoods[goodsId] ?? 0;
-  if (currentValue < amount) {
+  const updatedUser = await db.decrementGoods(openid, goodsId, amount);
+  if (!updatedUser) {
+    const userData = await db.findUserByOpenID(openid);
+    if (!userData) throw new Error('User not found');
+    const currentValue = (userData.goods && userData.goods[goodsId]) ?? 0;
     const name = getGoodsName(goodsId);
     throw new Error(`Insufficient ${name}. Current: ${currentValue}, Need: ${amount}`);
   }
 
-  const updatedUser = await db.incrementGoods(openid, goodsId, -amount);
-  const finalValue = (updatedUser.goods && updatedUser.goods[goodsId]) ?? (currentValue - amount);
+  const finalValue = (updatedUser.goods && updatedUser.goods[goodsId]) ?? 0;
 
   logger.info(`[Goods] -${amount} goods(${goodsId}) from ${source}. Current: ${finalValue}`, { openid });
   return { goodsId, value: finalValue, change: -amount };

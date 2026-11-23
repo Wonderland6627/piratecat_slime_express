@@ -47,7 +47,7 @@ middlewares/   认证、校验、错误处理
 utils/         数据库、日志、第三方调用
 config/        配置
 sql/           PostgreSQL 建表脚本
-scripts/       安装、导入、备份、SSH 隧道脚本
+scripts/       安装、导入、备份、重启检查、SSH 隧道脚本
 ```
 
 接口字段和联调步骤看 [快速开始](./docs/快速开始-QUICK_START.md) 和 [接口参考](./docs/接口参考-API_REFERENCE.md)。成功响应是 `{ "code": 0, "data": {}, "msg": "success" }`。
@@ -55,6 +55,7 @@ scripts/       安装、导入、备份、SSH 隧道脚本
 ## 文档
 
 - [文档索引](./docs/文档索引-服务端.md)
+- [后端操作手册](./docs/后端操作手册-OPS_PLAYBOOK.md)：改配置表、改代码、改数据库之后怎么重启和检查
 - [快速开始](./docs/快速开始-QUICK_START.md)
 - [环境配置](./docs/环境配置-ENV_SETUP.md)
 - [认证指南](./docs/认证指南-AUTH_GUIDE.md)

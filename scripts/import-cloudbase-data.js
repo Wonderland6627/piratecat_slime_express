@@ -98,6 +98,7 @@ async function main() {
 
   const batchSize = 500;
   let upserted = 0;
+  let skipped = 0;
 
   try {
     await client.query('BEGIN');
@@ -105,50 +106,61 @@ async function main() {
     for (let i = 0; i < merged.length; i += batchSize) {
       const batch = merged.slice(i, i + batchSize);
       for (const user of batch) {
-        await client.query(
-          `INSERT INTO user_game_infos (
-             id, open_id, progress_level_id, nick_name, avatar_url,
-             resources, goods, claimed_level_chests, created_at, updated_at
-           ) VALUES (
-             COALESCE($1, replace(gen_random_uuid()::text, '-', '')),
-             $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10
-           )
-           ON CONFLICT (open_id) DO UPDATE SET
-             id = COALESCE(user_game_infos.id, EXCLUDED.id),
-             progress_level_id = GREATEST(user_game_infos.progress_level_id, EXCLUDED.progress_level_id),
-             nick_name = CASE
-               WHEN EXCLUDED.nick_name <> '' THEN EXCLUDED.nick_name
-               ELSE user_game_infos.nick_name
-             END,
-             avatar_url = CASE
-               WHEN EXCLUDED.avatar_url <> '' THEN EXCLUDED.avatar_url
-               ELSE user_game_infos.avatar_url
-             END,
-             resources = user_game_infos.resources || EXCLUDED.resources,
-             goods = user_game_infos.goods || EXCLUDED.goods,
-             claimed_level_chests = (
-               SELECT ARRAY(
-                 SELECT DISTINCT unnest(user_game_infos.claimed_level_chests || EXCLUDED.claimed_level_chests)
-                 ORDER BY 1
-               )
-             ),
-             updated_at = GREATEST(user_game_infos.updated_at, EXCLUDED.updated_at)`,
-          [
-            user._id,
-            user.openID,
-            user.progressLevelID,
-            user.nickName,
-            user.avatarUrl,
-            JSON.stringify(user.resources),
-            JSON.stringify(user.goods),
-            user.claimedLevelChests,
-            user.createdAt,
-            user.updatedAt
-          ]
-        );
-        upserted += 1;
+        await client.query('SAVEPOINT row_upsert');
+        try {
+          await client.query(
+            `INSERT INTO user_game_infos (
+               id, open_id, progress_level_id, nick_name, avatar_url,
+               resources, goods, claimed_level_chests, created_at, updated_at
+             ) VALUES (
+               COALESCE($1, replace(gen_random_uuid()::text, '-', '')),
+               $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10
+             )
+             ON CONFLICT (open_id) DO UPDATE SET
+               progress_level_id = GREATEST(user_game_infos.progress_level_id, EXCLUDED.progress_level_id),
+               nick_name = CASE
+                 WHEN user_game_infos.nick_name <> '' THEN user_game_infos.nick_name
+                 ELSE EXCLUDED.nick_name
+               END,
+               avatar_url = CASE
+                 WHEN user_game_infos.avatar_url <> '' THEN user_game_infos.avatar_url
+                 ELSE EXCLUDED.avatar_url
+               END,
+               resources = EXCLUDED.resources || user_game_infos.resources,
+               goods = EXCLUDED.goods || user_game_infos.goods,
+               claimed_level_chests = (
+                 SELECT ARRAY(
+                   SELECT DISTINCT unnest(user_game_infos.claimed_level_chests || EXCLUDED.claimed_level_chests)
+                   ORDER BY 1
+                 )
+               ),
+               updated_at = GREATEST(user_game_infos.updated_at, EXCLUDED.updated_at)`,
+            [
+              user._id,
+              user.openID,
+              user.progressLevelID,
+              user.nickName,
+              user.avatarUrl,
+              JSON.stringify(user.resources),
+              JSON.stringify(user.goods),
+              user.claimedLevelChests,
+              user.createdAt,
+              user.updatedAt
+            ]
+          );
+          await client.query('RELEASE SAVEPOINT row_upsert');
+          upserted += 1;
+        } catch (rowError) {
+          await client.query('ROLLBACK TO SAVEPOINT row_upsert');
+          if (rowError.code === '23505') {
+            skipped += 1;
+            console.error(`[Import] Skip primary key conflict: openID=${user.openID} id=${user._id} (${rowError.message})`);
+            continue;
+          }
+          throw rowError;
+        }
       }
-      console.log(`[Import] Upserted ${Math.min(i + batch.length, merged.length)} / ${merged.length}`);
+      console.log(`[Import] Upserted ${upserted}, skipped ${skipped}, scanned ${Math.min(i + batch.length, merged.length)} / ${merged.length}`);
     }
 
     await client.query('COMMIT');
@@ -162,7 +174,7 @@ async function main() {
        LIMIT 5`
     );
 
-    console.log(`[Import] DONE. Upserted rows: ${upserted}`);
+    console.log(`[Import] DONE. Upserted rows: ${upserted}, skipped: ${skipped}`);
     console.log(`[Import] Table total rows: ${countRes.rows[0].c}`);
     console.log('[Import] DB top-5:');
     for (const row of rankRes.rows) {

@@ -38,4 +38,4 @@ curl https://<该环境域名>/api/version
 
 正式服应看到 `testMode: false`。两个环境的 `revision` 只有在发布时写了同一个提交标识时才能互相比较。
 
-`GET /health` 只说明进程在听端口，不包含版本。
+`GET /health` 只说明进程在听端口，不包含版本。`GET /ready` 会查一次数据库，连不上时返回 503。宝塔探活继续用 `/health`。

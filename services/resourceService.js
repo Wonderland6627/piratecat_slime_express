@@ -51,12 +51,25 @@ async function updateResource(openid, resourceType, change, source) {
   const currentValue = currentResources[resourceType] ?? config.defaultValue;
   let newValue = currentValue + change;
 
-  if (config.min !== null && newValue < config.min) {
-    throw new AppError(
-      `Insufficient ${config.key}. Current: ${currentValue}, Required: ${Math.abs(change)}`,
-      RESPONSE_CODE.RESOURCE_NOT_ENOUGH, 400
-    );
+  if (change < 0) {
+    const updatedUser = await db.decrementResource(openid, resourceType, Math.abs(change), {
+      defaultValue: config.defaultValue,
+      min: config.min === null || config.min === undefined ? 0 : config.min
+    });
+    if (!updatedUser) {
+      const latest = await db.findUserByOpenID(openid);
+      if (!latest) throw new Error('User not found');
+      const latestValue = normalizeResources(latest.resources)[resourceType] ?? config.defaultValue;
+      throw new AppError(
+        `Insufficient ${config.key}. Current: ${latestValue}, Required: ${Math.abs(change)}`,
+        RESPONSE_CODE.RESOURCE_NOT_ENOUGH, 400
+      );
+    }
+    const finalValue = (updatedUser.resources && updatedUser.resources[resourceType]) ?? (currentValue + change);
+    logger.info(`[Resource] deducted ${Math.abs(change)} ${config.key} from ${source}. Current: ${finalValue}`, { openid });
+    return { resourceType, value: finalValue, change };
   }
+
   if (config.max !== null && newValue > config.max) {
     change = config.max - currentValue;
     newValue = config.max;
@@ -78,17 +91,13 @@ async function updateResource(openid, resourceType, change, source) {
 }
 
 /**
- * 批量更新资源（用于通关奖励等需要同时修改多种资源的场景）
- * @param {string} openid
+ * 根据当前存档算出批量资源的赋值和增量，不写数据库。
+ * @param {Object} userData
  * @param {Array<{ resourceType: number, change: number, source: string }>} updates
- * @param {Object} [extraSets] - 额外的 set 字段（如 progressLevelID）
- * @param {number|null} [claimedChestIdToAdd] - 原子追加已领宝箱关卡 ID
- * @returns {Promise<Object>} updated resources map
+ * @param {Object} [extraSets]
+ * @returns {{ increments: Object, setFields: Object, currentResources: Object }}
  */
-async function batchUpdateResources(openid, updates, extraSets = {}, claimedChestIdToAdd = null) {
-  const userData = await db.findUserByOpenID(openid);
-  if (!userData) throw new Error('User not found');
-
+function planResourceBatch(userData, updates, extraSets = {}) {
   const rawResources = userData.resources || {};
   const currentResources = normalizeResources(rawResources);
   const increments = {};
@@ -117,7 +126,7 @@ async function batchUpdateResources(openid, updates, extraSets = {}, claimedChes
           setFields[`resources.${resourceType}`] = currentValue;
           forceSetResourceTypes.add(String(resourceType));
         }
-        logger.info(`[Resource] Batch: ${config.key} already at max(${config.max}), skip`, { openid });
+        logger.info(`[Resource] Batch: ${config.key} already at max(${config.max}), skip`, { source });
         continue;
       }
       newValue = currentValue + actualChange;
@@ -135,7 +144,7 @@ async function batchUpdateResources(openid, updates, extraSets = {}, claimedChes
       increments[resourceType] = (increments[resourceType] || 0) + actualChange;
     }
 
-    logger.info(`[Resource] Batch: ${actualChange > 0 ? '+' : ''}${actualChange} ${config.key} from ${source}`, { openid });
+    logger.info(`[Resource] Batch: ${actualChange > 0 ? '+' : ''}${actualChange} ${config.key} from ${source}`);
   }
 
   for (const [resourceType, value] of Object.entries(currentResources)) {
@@ -144,6 +153,23 @@ async function batchUpdateResources(openid, updates, extraSets = {}, claimedChes
     if (setFields[resourceFieldPath] !== undefined) continue;
     setFields[resourceFieldPath] = value;
   }
+
+  return { increments, setFields, currentResources };
+}
+
+/**
+ * 批量更新资源（用于通关奖励等需要同时修改多种资源的场景）
+ * @param {string} openid
+ * @param {Array<{ resourceType: number, change: number, source: string }>} updates
+ * @param {Object} [extraSets] - 额外的 set 字段（如 progressLevelID）
+ * @param {number|null} [claimedChestIdToAdd] - 原子追加已领宝箱关卡 ID
+ * @returns {Promise<Object>} updated resources map
+ */
+async function batchUpdateResources(openid, updates, extraSets = {}, claimedChestIdToAdd = null) {
+  const userData = await db.findUserByOpenID(openid);
+  if (!userData) throw new Error('User not found');
+
+  const { increments, setFields, currentResources } = planResourceBatch(userData, updates, extraSets);
 
   if (
     Object.keys(increments).length === 0 &&
@@ -160,6 +186,9 @@ async function batchUpdateResources(openid, updates, extraSets = {}, claimedChes
     {},
     claimedChestIdToAdd
   );
+  if (!updatedUser) {
+    throw new AppError('Level chest already claimed or level not cleared');
+  }
   return normalizeResources(updatedUser.resources);
 }
 
@@ -194,6 +223,7 @@ module.exports = {
   getResource,
   updateResource,
   batchUpdateResources,
+  planResourceBatch,
   getDefaultResources,
   normalizeResources,
   RESOURCE_TYPE

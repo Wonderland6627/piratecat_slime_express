@@ -63,6 +63,8 @@ curl -X POST http://localhost:3000/api/minigame/updateResource \
 
 `getLevelsConfigV2` 已废弃（返回 404），关卡由客户端本地 `levels.json` 加载。
 
-另外：`GET /health`、`GET /api/version`、`POST /api/time`。
+另外：`GET /health`（进程还在）、`GET /ready`（数据库能查）、`GET /api/version`、`POST /api/time`。
+
+改完配置表、代码或数据库后怎么重启，看 [后端操作手册](./后端操作手册-OPS_PLAYBOOK.md)。
 
 字段见 [接口参考](./接口参考-API_REFERENCE.md)，登录规则见 [认证指南](./认证指南-AUTH_GUIDE.md)。线上地址在 `ops.local.md`。

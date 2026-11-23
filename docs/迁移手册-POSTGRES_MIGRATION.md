@@ -14,6 +14,8 @@ sudo bash scripts/setup-postgres-ubuntu.sh
 
 3. 把终端打印的两行 `DATABASE_URL` 复制到本地记事本保存。
 
+角色已经存在时，再跑这个脚本不会改密码，也不会覆盖 `/root/slime-postgres-credentials.txt`。改表不要靠重跑安装脚本，用 `scripts/server-ops.sh` 的 `apply-sql`。
+
 ## 第 2 步：先切测试服
 
 1. 覆盖测试服代码（不要覆盖 `.env`、`logs/`）。
@@ -51,6 +53,8 @@ DATABASE_URL="正式服连接串" node scripts/import-cloudbase-data.js /tmp/use
 ```
 
 4. 核对总人数与 top-5 后删除 `/tmp/users_export.json`。
+
+导入可以对已经有数据的库再跑。同一个 `openID` 会保留库里已有的昵称、头像、金币和物品，只补导出里多出来的空缺；关卡取较大值，已领宝箱取并集。它不会把线上存档刷回旧快照。
 
 ## 第 5 步：切正式服
 
