@@ -9,12 +9,12 @@
 
 ```bash
 cd /www/apps/slime-express/piratecat_slime_express_dev
-sudo bash scripts/setup-postgres-ubuntu.sh
+sudo bash scripts/postgres/setup-postgres-ubuntu.sh
 ```
 
 3. 把终端打印的两行 `DATABASE_URL` 复制到本地记事本保存。
 
-角色已经存在时，再跑这个脚本不会改密码，也不会覆盖 `/root/slime-postgres-credentials.txt`。改表不要靠重跑安装脚本，用 `scripts/server-ops.sh` 的 `apply-sql`。
+角色已经存在时，再跑这个脚本不会改密码，也不会覆盖 `/root/slime-postgres-credentials.txt`。改表不要靠重跑安装脚本，用 `scripts/ops/server-ops.sh` 的 `apply-sql`。
 
 ## 第 2 步：先切测试服
 
@@ -32,7 +32,7 @@ npm install --omit=dev
 
 ## 第 3 步：本地连测试库
 
-1. 双击 `scripts/start-dev-db-tunnel.bat`，输入 SSH 密码，窗口不要关。
+1. 双击 `scripts/local/start-dev-db-tunnel.bat`，窗口不要关。
 2. 本地 `.env` 使用端口 `15432` 的测试服连接串。
 3. `npm start`，Unity Editor 测登录/体力/通关/签到/宝箱/排行榜。
 
@@ -43,13 +43,13 @@ npm install --omit=dev
 
 ```bash
 cd /www/apps/slime-express/piratecat_slime_express_dev
-node scripts/import-cloudbase-data.js /tmp/users_export.json --dry-run
+node scripts/postgres/import-cloudbase-data.js /tmp/users_export.json --dry-run
 ```
 
 3. 正式写入：
 
 ```bash
-DATABASE_URL="正式服连接串" node scripts/import-cloudbase-data.js /tmp/users_export.json
+DATABASE_URL="正式服连接串" node scripts/postgres/import-cloudbase-data.js /tmp/users_export.json
 ```
 
 4. 核对总人数与 top-5 后删除 `/tmp/users_export.json`。
@@ -69,7 +69,7 @@ DATABASE_URL="正式服连接串" node scripts/import-cloudbase-data.js /tmp/use
 1. 宝塔「计划任务」每天 04:00：
 
 ```bash
-bash /www/apps/slime-express/piratecat_slime_express/scripts/backup-postgres.sh
+bash /www/apps/slime-express/piratecat_slime_express/scripts/postgres/backup-postgres.sh
 ```
 
 2. 正式服稳定 1~3 天后，到腾讯云销毁 CloudBase 环境 `slimecloudservice-6enxmrfbc5bddc`。

@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0.."
+cd /d "%~dp0..\.."
 
 echo ==============================================
 echo  Slime local server + dev database tunnel

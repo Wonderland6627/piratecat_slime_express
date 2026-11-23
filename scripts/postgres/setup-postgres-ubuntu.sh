@@ -10,7 +10,7 @@ CREDENTIALS_FILE="/root/slime-postgres-credentials.txt"
 BACKUP_DIR="/www/backup/postgres"
 
 if [[ "${EUID}" -ne 0 ]]; then
-  echo "[ERROR] Please run with sudo: sudo bash scripts/setup-postgres-ubuntu.sh"
+  echo "[ERROR] Please run with sudo: sudo bash scripts/postgres/setup-postgres-ubuntu.sh"
   exit 1
 fi
 

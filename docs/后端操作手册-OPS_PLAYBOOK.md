@@ -28,23 +28,25 @@
 
 ```bash
 cd /www/apps/slime-express/piratecat_slime_express_dev
-bash scripts/server-ops.sh dev check
-bash scripts/server-ops.sh dev restart
-bash scripts/server-ops.sh dev apply-sql sql/002_xxx.sql
+bash scripts/ops/server-ops.sh dev check
+bash scripts/ops/server-ops.sh dev restart
+bash scripts/ops/server-ops.sh dev apply-sql sql/002_xxx.sql
 ```
+
+这套子目录还没部署到云服时，把命令里的 `scripts/ops/` 和 `scripts/postgres/` 改回 `scripts/`。
 
 正式服把 `dev` 换成 `prod`，目录换成正式服目录。备份只对正式服：
 
 ```bash
-bash scripts/server-ops.sh prod backup
+bash scripts/ops/server-ops.sh prod backup
 ```
 
-自己电脑上也可以双击或在仓库里执行 `scripts\server-ops.bat`，它会 SSH 到云服跑同一条命令。本机有 `%USERPROFILE%\.ssh\slime_server` 时用这把密钥；没有密钥时才问 root 密码。新脚本还不在服务器上时，先用宝塔把代码传上去，再跑。
+自己电脑上也可以在仓库里执行 `scripts\ops\server-ops.bat`，它会 SSH 到云服跑同一条命令。本机有 `%USERPROFILE%\.ssh\slime_server` 时用这把密钥；没有密钥时才问 root 密码。新脚本还不在服务器上时，先用宝塔把代码传上去，再跑。
 
 ```bat
-scripts\server-ops.bat dev check
-scripts\server-ops.bat dev restart
-scripts\server-ops.bat prod restart
+scripts\ops\server-ops.bat dev check
+scripts\ops\server-ops.bat dev restart
+scripts\ops\server-ops.bat prod restart
 ```
 
 `restart` 会按目录找 pm2 进程。找不到就按它打印的路径，到宝塔「网站 → Node项目」里点重启，然后再跑一次 `check`。
@@ -54,8 +56,8 @@ scripts\server-ops.bat prod restart
 1. 在自己电脑上双击 `TEngine/Configs/GameConfig/gen_code_bin_to_server.bat`。
 2. 它会把 JSON 写到 `piratecat_slime_express/config/luban/data`，代码写到 `config/luban/gen`。
 3. 用宝塔把这两个目录上传到测试服。不要覆盖 `.env` 和 `logs/`。
-4. 执行 `bash scripts/server-ops.sh dev restart`。
-5. 执行 `bash scripts/server-ops.sh dev check`。
+4. 执行 `bash scripts/ops/server-ops.sh dev restart`。
+5. 执行 `bash scripts/ops/server-ops.sh dev check`。
 6. 用测试服进游戏，点一下这次改过的奖励、体力或宝箱。
 7. 没问题后，把同样的 `config/luban` 上传到正式服，执行 `prod restart` 和 `prod check`。
 
@@ -72,8 +74,8 @@ scripts\server-ops.bat prod restart
 
 1. 上传改过的文件到测试服。不要覆盖 `.env` 和 `logs/`。
 2. 只有 `package.json` 变了，才在该目录执行 `npm install --omit=dev`。
-3. `bash scripts/server-ops.sh dev restart`
-4. `bash scripts/server-ops.sh dev check`
+3. `bash scripts/ops/server-ops.sh dev restart`
+4. `bash scripts/ops/server-ops.sh dev check`
 5. 在测试服把改过的功能点一遍。
 6. 再对正式服做同样的上传、重启、检查。
 
@@ -83,13 +85,13 @@ scripts\server-ops.bat prod restart
 2. 先上传 SQL 到测试服，执行：
 
 ```bash
-bash scripts/server-ops.sh dev apply-sql sql/002_xxx.sql
+bash scripts/ops/server-ops.sh dev apply-sql sql/002_xxx.sql
 ```
 
 3. 再上传使用这张新结构的代码，然后 `dev restart` 和 `dev check`。
 4. 测试通过后，对正式服重复灌 SQL、上传代码、重启、检查。
 
-不要用重跑 `scripts/setup-postgres-ubuntu.sh` 来改表。角色已经存在时，这个安装脚本不会再改密码。
+不要用重跑 `scripts/postgres/setup-postgres-ubuntu.sh` 来改表。角色已经存在时，这个安装脚本不会再改密码。
 
 ## 改了 .env
 

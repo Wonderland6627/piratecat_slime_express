@@ -7,7 +7,7 @@ const {
   parseExportDocuments,
   normalizeUserDocument,
   parseCloudDate
-} = require('../scripts/lib/importCloudbaseUsers');
+} = require('../scripts/postgres/lib/importCloudbaseUsers');
 
 test('parseCloudDate supports $date string and number', () => {
   assert.equal(
@@ -62,7 +62,7 @@ test('normalizeUserDocument merges existing resources over defaults', () => {
 });
 
 test('normalizeUserDocument truncates fractional resource and goods values', () => {
-  const { coerceIntMap } = require('../scripts/lib/importCloudbaseUsers');
+  const { coerceIntMap } = require('../scripts/postgres/lib/importCloudbaseUsers');
   assert.deepEqual(coerceIntMap({ '1': 190.9, bad: 'nope', '2': '15' }), { '1': 190, '2': 15 });
 
   const normalized = normalizeUserDocument({

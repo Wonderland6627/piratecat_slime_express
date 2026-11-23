@@ -31,7 +31,7 @@ WX_APPID=
 WX_SECRET=
 ```
 
-连云服测试库时，双击 `scripts/start-local-dev.bat`。它会先打开 SSH 隧道，再启动本地服。只开隧道、自己另起服务时，用 `scripts/start-dev-db-tunnel.bat`。
+连云服测试库时，双击 `scripts/local/start-local-dev.bat`。它会先打开 SSH 隧道，再启动本地服。只开隧道、自己另起服务时，用 `scripts/local/start-dev-db-tunnel.bat`。
 
 服务默认监听 `http://localhost:3000`，可用环境变量 `PORT` 覆盖。启动后访问 `GET /health` 确认进程起来了。
 
@@ -47,7 +47,9 @@ middlewares/   认证、校验、错误处理
 utils/         数据库、日志、第三方调用
 config/        配置
 sql/           PostgreSQL 建表脚本
-scripts/       安装、导入、备份、重启检查、SSH 隧道脚本
+scripts/local/     本机启动和 SSH 隧道
+scripts/ops/       云服检查、重启、灌 SQL
+scripts/postgres/  安装、导入、备份
 ```
 
 接口字段和联调步骤看 [快速开始](./docs/快速开始-QUICK_START.md) 和 [接口参考](./docs/接口参考-API_REFERENCE.md)。成功响应是 `{ "code": 0, "data": {}, "msg": "success" }`。

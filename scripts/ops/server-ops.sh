@@ -6,19 +6,19 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 用法（在云服上执行）:
-  bash scripts/server-ops.sh dev check
-  bash scripts/server-ops.sh dev restart
-  bash scripts/server-ops.sh dev apply-sql sql/002_xxx.sql
-  bash scripts/server-ops.sh prod backup
+  bash scripts/ops/server-ops.sh dev check
+  bash scripts/ops/server-ops.sh dev restart
+  bash scripts/ops/server-ops.sh dev apply-sql sql/002_xxx.sql
+  bash scripts/ops/server-ops.sh prod backup
 
 环境只能写 dev 或 prod。
 check    看进程、数据库和版本
 restart  重启这个目录对应的 Node 进程
 apply-sql  把 sql 文件灌进这个环境的库
-backup   只允许 prod，调用 scripts/backup-postgres.sh
+backup   只允许 prod，调用 scripts/postgres/backup-postgres.sh
 
 本机也可以:
-  scripts\server-ops.bat dev check
+  scripts\ops\server-ops.bat dev check
 EOF
 }
 
@@ -27,7 +27,7 @@ print_manual_restart() {
   echo "[需要你手动点一下] 没有找到这个目录对应的 pm2 进程。"
   echo "打开宝塔 → 网站 → Node项目 → 找到下面这个目录的项目 → 点重启。"
   echo "目录: ${APP_DIR}"
-  echo "重启后执行: bash scripts/server-ops.sh ${ENV_NAME} check"
+  echo "重启后执行: bash scripts/ops/server-ops.sh ${ENV_NAME} check"
 }
 
 if [[ $# -lt 2 ]]; then
@@ -145,7 +145,7 @@ cmd_restart() {
 
 cmd_apply_sql() {
   if [[ -z "${SQL_ARG}" ]]; then
-    echo "用法: bash scripts/server-ops.sh ${ENV_NAME} apply-sql sql/002_xxx.sql"
+    echo "用法: bash scripts/ops/server-ops.sh ${ENV_NAME} apply-sql sql/002_xxx.sql"
     exit 1
   fi
 
@@ -169,7 +169,7 @@ cmd_apply_sql() {
   echo "灌入 ${sql_file} -> 数据库 ${DB_NAME}"
   sudo -u postgres psql -d "${DB_NAME}" -v ON_ERROR_STOP=1 -f "${sql_file}"
   echo "[OK] SQL 已灌入 ${DB_NAME}"
-  echo "如果这次还改了 js 代码，接着执行: bash scripts/server-ops.sh ${ENV_NAME} restart"
+  echo "如果这次还改了 js 代码，接着执行: bash scripts/ops/server-ops.sh ${ENV_NAME} restart"
 }
 
 cmd_backup() {
@@ -177,7 +177,7 @@ cmd_backup() {
     echo "[ERROR] backup 只允许对 prod 执行，避免把测试库当成正式备份。"
     exit 1
   fi
-  bash "${APP_DIR}/scripts/backup-postgres.sh"
+  bash "${APP_DIR}/scripts/postgres/backup-postgres.sh"
 }
 
 case "${CMD}" in

@@ -3,8 +3,8 @@
  * Import CloudBase UserGameInfos export into PostgreSQL.
  *
  * Usage:
- *   node scripts/import-cloudbase-data.js <export.json> --dry-run
- *   DATABASE_URL=... node scripts/import-cloudbase-data.js <export.json>
+ *   node scripts/postgres/import-cloudbase-data.js <export.json> --dry-run
+ *   DATABASE_URL=... node scripts/postgres/import-cloudbase-data.js <export.json>
  */
 const path = require('path');
 const { Pool } = require('pg');
@@ -17,12 +17,12 @@ const {
 
 function printUsage() {
   console.log(`Usage:
-  node scripts/import-cloudbase-data.js <export-file> [--dry-run]
+  node scripts/postgres/import-cloudbase-data.js <export-file> [--dry-run]
 
 Examples:
-  node scripts/import-cloudbase-data.js /tmp/users_export.json --dry-run
+  node scripts/postgres/import-cloudbase-data.js /tmp/users_export.json --dry-run
   DATABASE_URL=postgresql://slime_prod_user:...@127.0.0.1:5432/slime_prod \\
-    node scripts/import-cloudbase-data.js /tmp/users_export.json
+    node scripts/postgres/import-cloudbase-data.js /tmp/users_export.json
 `);
 }
 
