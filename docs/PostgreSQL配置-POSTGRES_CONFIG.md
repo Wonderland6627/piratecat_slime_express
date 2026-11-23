@@ -37,7 +37,7 @@ sudo bash scripts/setup-postgres-ubuntu.sh
 
 - PostgreSQL 只监听 `127.0.0.1:5432`，不对公网开放
 - 正式库与测试库账号密码隔离
-- 本地开发用 `scripts/start-dev-db-tunnel.bat` 走 SSH 隧道，不暴露数据库端口
+- 本地开发双击 `scripts/start-local-dev.bat`：先走 SSH 隧道，再启动本地服，不暴露数据库端口。只开隧道时用 `scripts/start-dev-db-tunnel.bat`
 
 ## 备份
 

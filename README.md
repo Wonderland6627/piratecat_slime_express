@@ -31,7 +31,7 @@ WX_APPID=
 WX_SECRET=
 ```
 
-本地连云服测试库前先运行 `scripts/start-dev-db-tunnel.bat`。
+连云服测试库时，双击 `scripts/start-local-dev.bat`。它会先打开 SSH 隧道，再启动本地服。只开隧道、自己另起服务时，用 `scripts/start-dev-db-tunnel.bat`。
 
 服务默认监听 `http://localhost:3000`，可用环境变量 `PORT` 覆盖。启动后访问 `GET /health` 确认进程起来了。
 

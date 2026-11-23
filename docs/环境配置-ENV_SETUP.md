@@ -22,7 +22,7 @@ WX_APPID=
 WX_SECRET=
 ```
 
-本地连云服测试库前，先双击运行 `scripts/start-dev-db-tunnel.bat`，保持窗口不关。
+连云服测试库时双击 `scripts/start-local-dev.bat`，窗口保持开着。它会先开 SSH 隧道再启动本地服。只开隧道时用 `scripts/start-dev-db-tunnel.bat`。
 
 ## 变量
 

@@ -20,7 +20,7 @@ TOKEN_SECRET=本地随机串
 DATABASE_URL=postgresql://slime_dev_user:密码@127.0.0.1:15432/slime_dev
 ```
 
-本地连云服测试库前先运行 `scripts/start-dev-db-tunnel.bat`。
+连云服测试库时双击 `scripts/start-local-dev.bat`（先开隧道，再启动本地服）。只开隧道时用 `scripts/start-dev-db-tunnel.bat`。
 
 ## 2. Editor 登录
 
