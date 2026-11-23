@@ -114,4 +114,3 @@ bash scripts/ops/server-ops.sh dev apply-sql sql/002_xxx.sql
 - 不要在正式服修改 `TOKEN_SECRET`。
 - 不要把宝塔探活地址改成 `/ready`。
 - 不要对已经有玩家的库重跑安装脚本指望它改密码或改表。
-- 导入旧 CloudBase 数据可以对已有库再跑，它会留下库里已有的金币和物品，只补空缺。日常发版不需要跑导入。

@@ -49,7 +49,7 @@ config/        配置
 sql/           PostgreSQL 建表脚本
 scripts/local/     本机启动和 SSH 隧道
 scripts/ops/       云服检查、重启、灌 SQL
-scripts/postgres/  安装、导入、备份
+scripts/postgres/  安装、备份
 ```
 
 接口字段和联调步骤看 [快速开始](./docs/快速开始-QUICK_START.md) 和 [接口参考](./docs/接口参考-API_REFERENCE.md)。成功响应是 `{ "code": 0, "data": {}, "msg": "success" }`。
@@ -63,7 +63,6 @@ scripts/postgres/  安装、导入、备份
 - [认证指南](./docs/认证指南-AUTH_GUIDE.md)
 - [接口参考](./docs/接口参考-API_REFERENCE.md)
 - [PostgreSQL配置](./docs/PostgreSQL配置-POSTGRES_CONFIG.md)
-- [迁移手册](./docs/迁移手册-POSTGRES_MIGRATION.md)
 - [日志使用指南](./docs/日志使用指南-LOGGER_USAGE.md)
 
 现行部署见 `docs/ops.local.md`。仓库中的 `Dockerfile` 是早期云托管镜像，不是现在的发布方式。
