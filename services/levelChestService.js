@@ -2,7 +2,6 @@
 const { logger } = require('../utils/logger');
 const configManager = require('../config/luban/configManager');
 const db = require('../utils/db');
-const resourceService = require('./resourceService');
 const rewardService = require('./rewardService');
 const { RESOURCE_SOURCE } = require('../config/constants');
 const { AppError } = require('../middlewares/errorHandler');
@@ -40,34 +39,12 @@ async function claimLevelChest(openid, chestLevelId) {
     change: u.change,
     source: RESOURCE_SOURCE.CHEST_REWARD,
   }));
-  const planned = resourceService.planResourceBatch(userData, resUpdates, {});
-
-  const goodsIncrements = {};
-  const tbGoods = configManager.tables.tbgoods;
-  for (const item of goodsUpdates) {
-    if (item.change <= 0) continue;
-    if (!tbGoods || !tbGoods.get(item.goodsId)) {
-      throw new Error(`Invalid goods id: ${item.goodsId}`);
-    }
-    goodsIncrements[item.goodsId] = (goodsIncrements[item.goodsId] || 0) + item.change;
-    logger.info(`[Goods] Batch: +${item.change} goods(${item.goodsId}) from ${RESOURCE_SOURCE.CHEST_REWARD}`, { openid });
-  }
-
-  const updatedUser = await db.batchUpdateAndIncrement(
+  const granted = await rewardService.grantRewardItems(
     openid,
-    planned.setFields,
-    planned.increments,
-    goodsIncrements,
-    chestLevelId
+    resUpdates,
+    goodsUpdates,
+    { claimedChestIdToAdd: chestLevelId }
   );
-  if (!updatedUser) {
-    const latest = await db.findUserByOpenID(openid);
-    if (!latest) throw new AppError('User not found');
-    if ((latest.claimedLevelChests || []).includes(chestLevelId)) {
-      throw new AppError(`Level chest already claimed: ${chestLevelId}`);
-    }
-    throw new AppError(`Level not cleared: need ${chestLevelId}, current ${latest.progressLevelID || 0}`);
-  }
 
   const rewards = rewardService.buildRewardEntries(
     resourceUpdates,
@@ -75,9 +52,9 @@ async function claimLevelChest(openid, chestLevelId) {
     RESOURCE_SOURCE.CHEST_REWARD
   );
 
-  const updatedResources = resourceService.normalizeResources(updatedUser.resources);
-  const updatedGoods = updatedUser.goods || {};
-  const updatedClaimed = updatedUser.claimedLevelChests || [...claimed, chestLevelId];
+  const updatedResources = granted.resources;
+  const updatedGoods = granted.goods;
+  const updatedClaimed = granted.user.claimedLevelChests || [...claimed, chestLevelId];
 
   logger.info(`[LevelChest] Claimed level chest: chestLevelId=${chestLevelId}, rewardId=${milestone.reward_id}, items=${rewards.length}`, { openid });
 

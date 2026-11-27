@@ -6,6 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCHEMA_SQL="${PROJECT_DIR}/sql/001_init_schema.sql"
+MIGRATION_SQL="${PROJECT_DIR}/sql/002_add_last_checkin_date.sql"
 CREDENTIALS_FILE="/root/slime-postgres-credentials.txt"
 BACKUP_DIR="/www/backup/postgres"
 
@@ -118,6 +119,10 @@ SQL
 echo "[4/6] Applying schema to slime_prod and slime_dev..."
 sudo -u postgres psql -d slime_prod -f "${SCHEMA_SQL}"
 sudo -u postgres psql -d slime_dev -f "${SCHEMA_SQL}"
+if [[ -f "${MIGRATION_SQL}" ]]; then
+  sudo -u postgres psql -d slime_prod -f "${MIGRATION_SQL}"
+  sudo -u postgres psql -d slime_dev -f "${MIGRATION_SQL}"
+fi
 
 sudo -u postgres psql -d slime_prod <<'SQL'
 ALTER TABLE user_game_infos OWNER TO slime_prod_user;

@@ -55,9 +55,9 @@ function verifyToken(token) {
   } catch (error) {
     // JWT验证失败（签名错误、过期、格式错误等）
     if (error.name === 'TokenExpiredError') {
-      logger.error('Token expired', { expiredAt: error.expiredAt });
+      logger.warn('Token expired', { expiredAt: error.expiredAt });
     } else if (error.name === 'JsonWebTokenError') {
-      logger.error('Invalid token', { error: error.message });
+      logger.warn('Invalid token', { error: error.message });
     } else {
       logger.error('Token verification error', { error: error.message });
     }

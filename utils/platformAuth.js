@@ -1,6 +1,8 @@
 // 平台认证抽象层 - 支持微信、抖音、B站等不同平台
 const axios = require('axios');
 const { logger } = require('./logger');
+const { AppError } = require('../middlewares/errorHandler');
+const { RESPONSE_CODE } = require('../config/constants');
 
 // 平台类型枚举
 const PLATFORM_TYPES = {
@@ -34,7 +36,7 @@ class WeChatAuth {
     const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appid}&secret=${secret}&js_code=${code}&grant_type=authorization_code`;
     
     try {
-      const response = await axios.get(url);
+      const response = await axios.get(url, { timeout: 5000 });
       const data = response.data;
       
       if (data.errcode) {
@@ -141,19 +143,33 @@ class PlatformAuthFactory {
    * @returns {Object} 认证实例
    */
   static getAuthInstance(platform) {
+    if (!this.instances) {
+      this.instances = new Map();
+    }
+    if (this.instances.has(platform)) {
+      return this.instances.get(platform);
+    }
+
+    let instance;
     switch (platform) {
       case PLATFORM_TYPES.WECHAT:
-        return new WeChatAuth();
+        instance = new WeChatAuth();
+        break;
       case PLATFORM_TYPES.DOUYIN:
-        return new DouYinAuth();
+        instance = new DouYinAuth();
+        break;
       case PLATFORM_TYPES.BILIBILI:
-        return new BilibiliAuth();
+        instance = new BilibiliAuth();
+        break;
       case PLATFORM_TYPES.EDITOR:
-        return new EditorAuth();
+        instance = new EditorAuth();
+        break;
       default:
         // 默认使用微信
-        return new WeChatAuth();
+        instance = new WeChatAuth();
     }
+    this.instances.set(platform, instance);
+    return instance;
   }
   
   /**
@@ -184,6 +200,14 @@ class PlatformAuthFactory {
         throw new Error('Editor platform is only available in test mode');
       }
       return PLATFORM_TYPES.EDITOR;
+    }
+
+    if (platform && !Object.values(PLATFORM_TYPES).includes(platform)) {
+      throw new AppError(
+        `Unsupported platform: ${platform}`,
+        RESPONSE_CODE.VALIDATION_ERROR,
+        400
+      );
     }
     
     // 如果找到了平台类型，直接返回

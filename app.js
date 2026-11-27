@@ -76,8 +76,8 @@ app.use(morgan(':method :url :status :response-time ms - :res[content-length]', 
 }));
 // ========================================
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '32kb' }));
+app.use(express.urlencoded({ extended: false, limit: '16kb' }));
 
 // ============ 详细请求日志中间件（必须在 express.json() 之后）============
 // 2. 详细请求日志中间件（记录 IP、请求参数、响应内容等）

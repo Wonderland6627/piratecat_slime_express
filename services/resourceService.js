@@ -11,7 +11,7 @@ const { AppError } = require('../middlewares/errorHandler');
  */
 async function getResources(openid) {
   const userData = await db.findUserByOpenID(openid);
-  if (!userData) throw new Error('User not found');
+  if (!userData) throw new AppError('User not found', RESPONSE_CODE.NOT_FOUND, 404);
 
   return normalizeResources(userData.resources);
 }
@@ -40,16 +40,20 @@ async function getResource(openid, resourceType) {
 async function updateResource(openid, resourceType, change, source) {
   validateResourceType(resourceType);
   if (change === 0) throw new Error('Change amount cannot be 0');
+  if (process.env.ENABLE_TEST_MODE !== 'true' && change > 0) {
+    throw new AppError(
+      'Positive resource changes must be granted by a server-side reward flow',
+      RESPONSE_CODE.VALIDATION_ERROR,
+      403
+    );
+  }
 
   const config = RESOURCE_CONFIG[resourceType];
   const userData = await db.findUserByOpenID(openid);
-  if (!userData) throw new Error('User not found');
+  if (!userData) throw new AppError('User not found', RESPONSE_CODE.NOT_FOUND, 404);
 
-  const rawResources = userData.resources || {};
-  const currentResources = normalizeResources(rawResources);
-  const hasCurrentResourceField = hasResourceField(rawResources, resourceType);
+  const currentResources = normalizeResources(userData.resources);
   const currentValue = currentResources[resourceType] ?? config.defaultValue;
-  let newValue = currentValue + change;
 
   if (change < 0) {
     const updatedUser = await db.decrementResource(openid, resourceType, Math.abs(change), {
@@ -58,7 +62,7 @@ async function updateResource(openid, resourceType, change, source) {
     });
     if (!updatedUser) {
       const latest = await db.findUserByOpenID(openid);
-      if (!latest) throw new Error('User not found');
+      if (!latest) throw new AppError('User not found', RESPONSE_CODE.NOT_FOUND, 404);
       const latestValue = normalizeResources(latest.resources)[resourceType] ?? config.defaultValue;
       throw new AppError(
         `Insufficient ${config.key}. Current: ${latestValue}, Required: ${Math.abs(change)}`,
@@ -70,24 +74,16 @@ async function updateResource(openid, resourceType, change, source) {
     return { resourceType, value: finalValue, change };
   }
 
-  if (config.max !== null && newValue > config.max) {
-    change = config.max - currentValue;
-    newValue = config.max;
-    if (change <= 0) {
-      if (!hasCurrentResourceField) {
-        await db.setResource(openid, resourceType, currentValue);
-      }
-      logger.info(`[Resource] ${config.key} already at max(${config.max}), skip`, { openid });
-      return { resourceType, value: currentValue, change: 0 };
-    }
-  }
+  const updatedUser = await db.incrementResource(openid, resourceType, change, {
+    defaultValue: config.defaultValue,
+    max: config.max
+  });
+  const finalValue = (updatedUser.resources && updatedUser.resources[resourceType]) ?? currentValue;
+  const actualChange = Math.max(finalValue - currentValue, 0);
 
-  const updatedUser = await db.setResource(openid, resourceType, newValue);
-  const finalValue = (updatedUser.resources && updatedUser.resources[resourceType]) ?? newValue;
+  logger.info(`[Resource] added ${actualChange} ${config.key} from ${source}. Current: ${finalValue}`, { openid });
 
-  logger.info(`[Resource] ${change > 0 ? 'added' : 'deducted'} ${Math.abs(change)} ${config.key} from ${source}. Current: ${finalValue}`, { openid });
-
-  return { resourceType, value: finalValue, change };
+  return { resourceType, value: finalValue, change: actualChange };
 }
 
 /**
@@ -167,7 +163,7 @@ function planResourceBatch(userData, updates, extraSets = {}) {
  */
 async function batchUpdateResources(openid, updates, extraSets = {}, claimedChestIdToAdd = null) {
   const userData = await db.findUserByOpenID(openid);
-  if (!userData) throw new Error('User not found');
+  if (!userData) throw new AppError('User not found', RESPONSE_CODE.NOT_FOUND, 404);
 
   const { increments, setFields, currentResources } = planResourceBatch(userData, updates, extraSets);
 
@@ -196,7 +192,11 @@ async function batchUpdateResources(openid, updates, extraSets = {}, claimedChes
 
 function validateResourceType(resourceType) {
   if (!RESOURCE_CONFIG[resourceType]) {
-    throw new Error(`Invalid resource type: ${resourceType}`);
+    throw new AppError(
+      `Invalid resource type: ${resourceType}`,
+      RESPONSE_CODE.VALIDATION_ERROR,
+      400
+    );
   }
 }
 

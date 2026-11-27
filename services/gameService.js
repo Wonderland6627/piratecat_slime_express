@@ -2,6 +2,9 @@
 const db = require('../utils/db');
 const { DEFAULTS } = require('../config/constants');
 
+const RANK_CACHE_TTL_MS = 15 * 1000;
+const rankCache = new Map();
+
 /**
  * 把自己按关卡插进排行榜。空昵称不进榜。超出上限时丢掉最后一名。
  * @param {Object[]} rankList
@@ -45,8 +48,20 @@ function insertSelfIntoRank(rankList, selfData, limit) {
  * @returns {Promise<Array>} 排行榜列表
  */
 async function getUserRankList(limit, currentOpenID = null) {
-  const actualLimit = limit || DEFAULTS.RANK_LIMIT;
-  const rankList = await db.findRankUsers(actualLimit);
+  const actualLimit = Math.min(
+    Math.max(Number.isInteger(limit) ? limit : DEFAULTS.RANK_LIMIT, 1),
+    100
+  );
+  const now = Date.now();
+  const cached = rankCache.get(actualLimit);
+  let rankList;
+
+  if (cached && now - cached.cachedAt < RANK_CACHE_TTL_MS) {
+    rankList = cached.data.slice();
+  } else {
+    rankList = await db.findRankUsers(actualLimit);
+    rankCache.set(actualLimit, { cachedAt: now, data: rankList.slice() });
+  }
 
   if (!currentOpenID) {
     return rankList;

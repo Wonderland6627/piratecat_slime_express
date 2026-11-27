@@ -2,6 +2,8 @@
 const db = require('../utils/db');
 const { logger } = require('../utils/logger');
 const configManager = require('../config/luban/configManager');
+const { AppError } = require('../middlewares/errorHandler');
+const { RESPONSE_CODE } = require('../config/constants');
 
 /**
  * 获取用户所有物品
@@ -10,7 +12,7 @@ const configManager = require('../config/luban/configManager');
  */
 async function getGoods(openid) {
   const userData = await db.findUserByOpenID(openid);
-  if (!userData) throw new Error('User not found');
+  if (!userData) throw new AppError('User not found', RESPONSE_CODE.NOT_FOUND, 404);
   return userData.goods || {};
 }
 
@@ -36,7 +38,9 @@ async function getGoodsItem(openid, goodsId) {
  */
 async function addGoods(openid, goodsId, amount, source) {
   validateGoodsId(goodsId);
-  if (amount <= 0) throw new Error('Add amount must be positive');
+  if (!Number.isFinite(Number(amount)) || amount <= 0) {
+    throw new AppError('Add amount must be positive', RESPONSE_CODE.VALIDATION_ERROR, 400);
+  }
 
   const updatedUser = await db.incrementGoods(openid, goodsId, amount);
   const finalValue = (updatedUser.goods && updatedUser.goods[goodsId]) ?? amount;
@@ -55,15 +59,21 @@ async function addGoods(openid, goodsId, amount, source) {
  */
 async function consumeGoods(openid, goodsId, amount, source) {
   validateGoodsId(goodsId);
-  if (amount <= 0) throw new Error('Consume amount must be positive');
+  if (!Number.isFinite(Number(amount)) || amount <= 0) {
+    throw new AppError('Consume amount must be positive', RESPONSE_CODE.VALIDATION_ERROR, 400);
+  }
 
   const updatedUser = await db.decrementGoods(openid, goodsId, amount);
   if (!updatedUser) {
     const userData = await db.findUserByOpenID(openid);
-    if (!userData) throw new Error('User not found');
+    if (!userData) throw new AppError('User not found', RESPONSE_CODE.NOT_FOUND, 404);
     const currentValue = (userData.goods && userData.goods[goodsId]) ?? 0;
     const name = getGoodsName(goodsId);
-    throw new Error(`Insufficient ${name}. Current: ${currentValue}, Need: ${amount}`);
+    throw new AppError(
+      `Insufficient ${name}. Current: ${currentValue}, Need: ${amount}`,
+      RESPONSE_CODE.RESOURCE_NOT_ENOUGH,
+      400
+    );
   }
 
   const finalValue = (updatedUser.goods && updatedUser.goods[goodsId]) ?? 0;
@@ -102,7 +112,11 @@ async function batchAddGoods(openid, updates, extraSets = {}) {
 function validateGoodsId(goodsId) {
   const tbGoods = configManager.tables.tbgoods;
   if (!tbGoods || !tbGoods.get(goodsId)) {
-    throw new Error(`Invalid goods id: ${goodsId}`);
+    throw new AppError(
+      `Invalid goods id: ${goodsId}`,
+      RESPONSE_CODE.VALIDATION_ERROR,
+      400
+    );
   }
 }
 

@@ -1,8 +1,6 @@
 // 广告礼包领取服务
 const { logger } = require('../utils/logger');
 const configManager = require('../config/luban/configManager');
-const resourceService = require('./resourceService');
-const goodsService = require('./goodsService');
 const rewardService = require('./rewardService');
 const { RESOURCE_SOURCE } = require('../config/constants');
 const { AppError } = require('../middlewares/errorHandler');
@@ -34,16 +32,12 @@ async function claimAdsGiftPack(openid, rewardId) {
     change: u.change,
     source: RESOURCE_SOURCE.AD_REWARD,
   }));
-  const updatedResources = await resourceService.batchUpdateResources(openid, resUpdates);
-
   const gdsUpdates = goodsUpdates.map(u => ({
     goodsId: u.goodsId,
     change: u.change,
     source: RESOURCE_SOURCE.AD_REWARD,
   }));
-  const updatedGoods = gdsUpdates.length > 0
-    ? await goodsService.batchAddGoods(openid, gdsUpdates)
-    : undefined;
+  const granted = await rewardService.grantRewardItems(openid, resUpdates, gdsUpdates);
 
   const rewards = rewardService.buildRewardEntries(
     resourceUpdates,
@@ -53,7 +47,7 @@ async function claimAdsGiftPack(openid, rewardId) {
 
   logger.info(`[AdsGiftPack] Claimed ads gift pack: rewardId=${rewardId}, items=${rewards.length}`, { openid });
 
-  return { rewards, resources: updatedResources, goods: updatedGoods };
+  return { rewards, resources: granted.resources, goods: granted.goods };
 }
 
 module.exports = {

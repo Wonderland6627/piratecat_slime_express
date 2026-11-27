@@ -6,7 +6,8 @@ const router = express.Router();
 const { authMiddleware, optionalAuthMiddleware } = require('../middlewares/auth');
 const { validateCode } = require('../middlewares/validator');
 const { testModeMiddleware } = require('../middlewares/testMode');
-const { loginLimiter } = require('../middlewares/rateLimiter');
+const { loginLimiter, userActionLimiter } = require('../middlewares/rateLimiter');
+const { asyncHandler } = require('../middlewares/asyncHandler');
 
 // 控制器
 const minigameController = require('../controllers/minigameController');
@@ -22,7 +23,7 @@ const adsGiftPackController = require('../controllers/adsGiftPackController');
 router.post('/getCode2Session', 
   loginLimiter,
   validateCode,
-  minigameController.getCode2Session
+  asyncHandler(minigameController.getCode2Session)
 );
 
 /**
@@ -30,7 +31,7 @@ router.post('/getCode2Session',
  */
 router.post('/getUserWXContext',
   authMiddleware,
-  minigameController.getUserWXContext
+  asyncHandler(minigameController.getUserWXContext)
 );
 
 /**
@@ -38,7 +39,7 @@ router.post('/getUserWXContext',
  */
 router.post('/getUserGameInfoV2',
   authMiddleware,
-  minigameController.getUserGameInfo
+  asyncHandler(minigameController.getUserGameInfo)
 );
 
 /**
@@ -46,7 +47,8 @@ router.post('/getUserGameInfoV2',
  */
 router.post('/setUserGameInfoV2',
   authMiddleware,
-  minigameController.setUserGameInfo
+  userActionLimiter,
+  asyncHandler(minigameController.setUserGameInfo)
 );
 
 /**
@@ -54,7 +56,7 @@ router.post('/setUserGameInfoV2',
  */
 router.post('/getUserRankListV2',
   authMiddleware,
-  minigameController.getUserRankList
+  asyncHandler(minigameController.getUserRankList)
 );
 
 /**
@@ -63,7 +65,7 @@ router.post('/getUserRankListV2',
  */
 router.post('/getLevelsConfigV2',
   authMiddleware,
-  minigameController.getLevelsConfig
+  asyncHandler(minigameController.getLevelsConfig)
 );
 
 /**
@@ -72,7 +74,8 @@ router.post('/getLevelsConfigV2',
  */
 router.post('/updateResource',
   authMiddleware,
-  resourceController.updateResource
+  userActionLimiter,
+  asyncHandler(resourceController.updateResource)
 );
 
 /**
@@ -80,7 +83,7 @@ router.post('/updateResource',
  */
 router.post('/getResources',
   authMiddleware,
-  resourceController.getResources
+  asyncHandler(resourceController.getResources)
 );
 
 /**
@@ -89,7 +92,8 @@ router.post('/getResources',
  */
 router.post('/claimLevelReward',
   authMiddleware,
-  levelRewardController.claimLevelReward
+  userActionLimiter,
+  asyncHandler(levelRewardController.claimLevelReward)
 );
 
 /**
@@ -97,7 +101,8 @@ router.post('/claimLevelReward',
  */
 router.post('/claimDailyCheckin',
   authMiddleware,
-  dailyCheckinController.claimDailyCheckin
+  userActionLimiter,
+  asyncHandler(dailyCheckinController.claimDailyCheckin)
 );
 
 /**
@@ -106,7 +111,8 @@ router.post('/claimDailyCheckin',
  */
 router.post('/claimLevelChest',
   authMiddleware,
-  levelChestController.claimLevelChest
+  userActionLimiter,
+  asyncHandler(levelChestController.claimLevelChest)
 );
 
 /**
@@ -115,7 +121,8 @@ router.post('/claimLevelChest',
  */
 router.post('/claimAdsGiftPack',
   authMiddleware,
-  adsGiftPackController.claimAdsGiftPack
+  userActionLimiter,
+  asyncHandler(adsGiftPackController.claimAdsGiftPack)
 );
 
 /**
@@ -125,7 +132,8 @@ router.post('/claimAdsGiftPack',
 router.post('/debugSetUserGameInfo',
   authMiddleware,
   testModeMiddleware,
-  minigameController.debugSetUserGameInfo
+  userActionLimiter,
+  asyncHandler(minigameController.debugSetUserGameInfo)
 );
 
 module.exports = router;

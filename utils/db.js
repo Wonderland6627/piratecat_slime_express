@@ -75,6 +75,9 @@ function mapUserRow(row) {
     resources: row.resources || {},
     goods: row.goods || {},
     claimedLevelChests: Array.isArray(row.claimed_level_chests) ? row.claimed_level_chests : [],
+    lastCheckinDate: row.last_checkin_date
+      ? new Date(row.last_checkin_date).toISOString().slice(0, 10)
+      : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null
   };
@@ -299,10 +302,11 @@ async function findRankUsers(limit) {
   try {
     const pool = getPool();
     const result = await pool.query(
-      `SELECT *
+      `SELECT id, open_id, progress_level_id, nick_name, avatar_url
        FROM user_game_infos
        WHERE progress_level_id > 0
          AND nick_name <> ''
+         AND avatar_url <> ''
        ORDER BY progress_level_id DESC
        LIMIT $1`,
       [limit]
@@ -353,24 +357,39 @@ async function setResource(openID, resourceTypeId, value) {
  * @param {string} openID
  * @param {number|string} resourceTypeId
  * @param {number} amount
+ * @param {{ defaultValue?: number, max?: number|null }} [options]
  * @returns {Promise<Object>}
  */
-async function incrementResource(openID, resourceTypeId, amount) {
+async function incrementResource(openID, resourceTypeId, amount, options = {}) {
   try {
     const pool = getPool();
     const key = String(resourceTypeId);
+    const n = Math.trunc(Number(amount));
+    if (!Number.isFinite(n) || n <= 0) throw new Error('Increment amount must be positive');
+    const defaultValue = Number.isFinite(Number(options.defaultValue))
+      ? Math.trunc(Number(options.defaultValue))
+      : 0;
+    const max = Number.isFinite(Number(options.max))
+      ? Math.trunc(Number(options.max))
+      : null;
+    const nextValue = max === null
+      ? 'COALESCE((resources->>$2)::int, $4::int) + $3::int'
+      : 'LEAST(COALESCE((resources->>$2)::int, $4::int) + $3::int, $5::int)';
+    const params = max === null
+      ? [openID, key, n, defaultValue]
+      : [openID, key, n, defaultValue, max];
     const result = await pool.query(
       `UPDATE user_game_infos
        SET resources = jsonb_set(
              COALESCE(resources, '{}'::jsonb),
              ARRAY[$2::text],
-             to_jsonb(COALESCE((resources->>$2)::int, 0) + $3::int),
+             to_jsonb(${nextValue}),
              true
            ),
            updated_at = NOW()
        WHERE open_id = $1
        RETURNING *`,
-      [openID, key, amount]
+      params
     );
     if (!result.rows[0]) throw new Error('User not found after resource update');
     return mapUserRow(result.rows[0]);
@@ -506,7 +525,8 @@ async function batchUpdateAndIncrement(
   sets = {},
   resourceIncrements = {},
   goodsIncrements = {},
-  claimedChestIdToAdd = null
+  claimedChestIdToAdd = null,
+  options = {}
 ) {
   try {
     const pool = getPool();
@@ -578,25 +598,38 @@ async function batchUpdateAndIncrement(
     }
 
     let chestGuard = false;
+    let chestParam = null;
     if (claimedChestIdToAdd !== null && claimedChestIdToAdd !== undefined) {
       const chestId = Math.trunc(Number(claimedChestIdToAdd));
       if (!Number.isFinite(chestId)) throw new Error('claimedChestIdToAdd must be a number');
-      setClauses.push(`claimed_level_chests = array_append(claimed_level_chests, $${idx}::int)`);
+      chestParam = idx;
+      setClauses.push(`claimed_level_chests = array_append(claimed_level_chests, $${chestParam}::int)`);
       values.push(chestId);
       idx += 1;
       chestGuard = true;
     }
 
+    let checkinGuard = false;
+    if (options.checkinDate !== undefined && options.checkinDate !== null) {
+      setClauses.push(`last_checkin_date = $${idx}::date`);
+      values.push(options.checkinDate);
+      idx += 1;
+      checkinGuard = true;
+    }
+
     setClauses.push('updated_at = NOW()');
 
-    if (setClauses.length === 1 && !chestGuard) {
+    if (setClauses.length === 1 && !chestGuard && !checkinGuard) {
       return findUserByOpenID(openID);
     }
 
-    const chestParam = chestGuard ? idx - 1 : null;
     let whereSql = 'open_id = $1';
     if (chestGuard) {
       whereSql += ` AND progress_level_id >= $${chestParam}::int AND NOT ($${chestParam}::int = ANY(claimed_level_chests))`;
+    }
+    if (checkinGuard) {
+      const checkinParam = idx - 1;
+      whereSql += ` AND last_checkin_date IS DISTINCT FROM $${checkinParam}::date`;
     }
 
     const result = await pool.query(
@@ -608,7 +641,7 @@ async function batchUpdateAndIncrement(
     );
 
     if (!result.rows[0]) {
-      if (chestGuard) return null;
+      if (chestGuard || checkinGuard) return null;
       throw new Error('User not found after batch update');
     }
     return mapUserRow(result.rows[0]);

@@ -59,7 +59,7 @@ async function getUserGameInfo(req, res, next) {
 async function setUserGameInfo(req, res, next) {
   try {
     const openid = req.user.openid;
-    const result = await userService.setUserGameInfo(openid, req.body);
+    const result = await userService.updateUserProfile(openid, req.body);
     return success(res, result, 'update user game info success');
   } catch (err) {
     next(err);

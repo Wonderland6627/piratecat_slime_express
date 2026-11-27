@@ -13,7 +13,7 @@ async function claimLevelReward(req, res, next) {
     const openid = req.user.openid;
     const { levelId, watchedAd } = req.body;
 
-    if (!levelId || typeof levelId !== 'number') {
+    if (!Number.isInteger(levelId) || levelId < 1) {
       throw new AppError('levelId is required and must be a number', RESPONSE_CODE.VALIDATION_ERROR, 400);
     }
 

@@ -1,8 +1,6 @@
 // 每日签到服务层
 const { logger } = require('../utils/logger');
 const configManager = require('../config/luban/configManager');
-const resourceService = require('./resourceService');
-const goodsService = require('./goodsService');
 const rewardService = require('./rewardService');
 const { RESOURCE_SOURCE } = require('../config/constants');
 
@@ -18,23 +16,23 @@ async function claimDailyCheckin(openid) {
   const rewardId = gc.daily_checkin_reward_id;
   const { resourceUpdates, goodsUpdates } = rewardService.resolveReward(rewardId);
 
-  // 处理资源奖励
   const resUpdates = resourceUpdates.map(u => ({
     resourceType: u.resourceType,
     change: u.change,
     source: RESOURCE_SOURCE.DAILY_CHECKIN,
   }));
-  const updatedResources = await resourceService.batchUpdateResources(openid, resUpdates);
 
-  // 处理物品奖励
   const gdsUpdates = goodsUpdates.map(u => ({
     goodsId: u.goodsId,
     change: u.change,
     source: RESOURCE_SOURCE.DAILY_CHECKIN,
   }));
-  const updatedGoods = gdsUpdates.length > 0
-    ? await goodsService.batchAddGoods(openid, gdsUpdates)
-    : undefined;
+  const granted = await rewardService.grantRewardItems(
+    openid,
+    resUpdates,
+    gdsUpdates,
+    { checkinDate: getBusinessDate() }
+  );
 
   const rewards = rewardService.buildRewardEntries(
     resourceUpdates,
@@ -44,7 +42,13 @@ async function claimDailyCheckin(openid) {
 
   logger.info(`[DailyCheckin] Claimed daily checkin: rewardId=${rewardId}, items=${rewards.length}`, { openid });
 
-  return { rewards, resources: updatedResources, goods: updatedGoods };
+  return { rewards, resources: granted.resources, goods: granted.goods };
+}
+
+function getBusinessDate() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai'
+  }).format(new Date());
 }
 
 module.exports = {

@@ -69,6 +69,39 @@ async function setUserGameInfo(openid, gameInfo) {
 }
 
 /**
+ * 仅更新客户端可以公开修改的资料字段。
+ * 游戏进度、资源、物品和已领奖励不能通过普通接口覆盖。
+ * @param {string} openid
+ * @param {Object} profile
+ * @returns {Promise<Object>}
+ */
+async function updateUserProfile(openid, profile = {}) {
+  const updateData = {};
+
+  if (profile.nickName !== undefined) {
+    updateData.nickName = normalizeProfileText(profile.nickName, 64, 'nickName');
+  }
+  if (profile.avatarUrl !== undefined) {
+    updateData.avatarUrl = normalizeProfileText(profile.avatarUrl, 512, 'avatarUrl');
+  }
+
+  const existingUser = await db.findUserByOpenID(openid);
+  if (!existingUser) {
+    const now = new Date();
+    return db.createUser({
+      openID: openid,
+      resources: getDefaultResources(),
+      goods: {},
+      createdAt: now,
+      updatedAt: now,
+      ...updateData
+    });
+  }
+
+  return db.updateUser(openid, updateData);
+}
+
+/**
  * 获取微信上下文信息
  * @param {string} openid
  * @param {Object} eventData
@@ -88,8 +121,16 @@ function hasIncompleteResources(resources, normalizedResources) {
   return Object.keys(normalizedResources).some(key => !Object.prototype.hasOwnProperty.call(resources, key));
 }
 
+function normalizeProfileText(value, maxLength, fieldName) {
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a string`);
+  }
+  return value.trim().slice(0, maxLength);
+}
+
 module.exports = {
   getUserGameInfo,
   setUserGameInfo,
+  updateUserProfile,
   getUserWXContext
 };

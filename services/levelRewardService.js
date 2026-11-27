@@ -3,7 +3,8 @@ const { logger } = require('../utils/logger');
 const db = require('../utils/db');
 const resourceService = require('./resourceService');
 const configManager = require('../config/luban/configManager');
-const { RESOURCE_TYPE, RESOURCE_SOURCE, ITEM_TYPE } = require('../config/constants');
+const { RESOURCE_TYPE, RESOURCE_SOURCE, ITEM_TYPE, RESPONSE_CODE } = require('../config/constants');
+const { AppError } = require('../middlewares/errorHandler');
 
 /**
  * 领取通关奖励（服务端统一结算）
@@ -22,7 +23,15 @@ async function claimLevelReward(openid, levelId, watchedAd) {
   const user = await db.findUserByOpenID(openid);
   if (!user) throw new Error('User not found');
 
-  const isFirstClear = levelId > (user.progressLevelID || 0);
+  const currentProgress = user.progressLevelID || 0;
+  if (levelId > currentProgress + 1) {
+    throw new AppError(
+      `Level not cleared: need ${levelId - 1}, current ${currentProgress}`,
+      RESPONSE_CODE.VALIDATION_ERROR,
+      400
+    );
+  }
+  const isFirstClear = levelId > currentProgress;
 
   // coinReward = floor(baseCoin + coinPerLevel * levelId)
   const coinReward = Math.floor(coinRes.default_value + gc.coin_per_level * levelId);
